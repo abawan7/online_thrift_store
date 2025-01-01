@@ -42,6 +42,10 @@ export default function LoginView({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
           <Text style={styles.signupText}>Don't have an account? <Text style={styles.signupLink}>Sign Up</Text></Text>
         </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('ProximityCheck')}>
+          <Text style={styles.signupText}>Proximity Check <Text style={styles.signupLink}>Click Here</Text></Text>
+        </TouchableOpacity>
       </View>
       <StatusBar style="auto" />
     </ImageBackground>
