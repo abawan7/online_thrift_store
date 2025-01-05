@@ -3,8 +3,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import LoginView from './views/LoginView';
 import SignupView from './views/SignupView';
-import ForgetPasswordView from './views/ForgetpasswordView';
-import ProximityCheckView from './views/ProximityCheckView'; // Import the new Proximity Check screen
+import ForgetPasswordView from './views/ForgetPasswordView';
+import ProximityCheckView from './views/ProximityCheckView';
+import ChangePasswordView from "./views/ChangePasswordView"; // Import the new Proximity Check screen
 
 const Stack = createStackNavigator();
 
@@ -23,6 +24,7 @@ export default function AppNavigator() {
                 <Stack.Screen name="Signup" component={SignupView} />
                 <Stack.Screen name="Forgetpassword" component={ForgetPasswordView} />
                 <Stack.Screen name="ProximityCheck" component={ProximityCheckView} />
+                <Stack.Screen name="ChangePassword" component={ChangePasswordView} />
             </Stack.Navigator>
         </NavigationContainer>
     );

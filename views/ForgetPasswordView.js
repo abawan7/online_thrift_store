@@ -59,7 +59,7 @@ export default function ForgetpasswordView({ navigation }) {
                       />
                   ))}
                 </View>
-                <TouchableOpacity style={styles.enterButton}>
+                <TouchableOpacity style={styles.enterButton} onPress={() => navigation.navigate('ChangePassword')}>
                   <Text style={styles.enterButtonText}>Enter</Text>
                 </TouchableOpacity>
                 <TouchableOpacity>
