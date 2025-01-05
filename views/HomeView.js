@@ -1,4 +1,7 @@
 import React, {useRef, useState} from 'react';
+import Header from './Header';
+import SideMenu from './SideMenu';
+import Footer from './FooterView';
 import {
     View,
     Text,
@@ -14,9 +17,9 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar, Platform } from 'react-native';
 
+
 const screenWidth = Dimensions.get('window').width;
-const cardWidth = screenWidth / 2 - 30; // Adjust card width dynamically
-const menuWidth = screenWidth * 0.5; // Sliding menu width
+const menuWidth = screenWidth * 0.7;
 
 const categories = [
     { id: '1', name: 'Decoration', image: require('../assets/Decoration.png') },
@@ -73,33 +76,25 @@ const products = [
 ];
 
 const OnlineThriftStore = ({navigation}) => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // Menu state
-    const slideAnim = useRef(new Animated.Value(-menuWidth)).current; // Animation value
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
 
     const toggleMenu = () => {
         if (isMenuOpen) {
             Animated.timing(slideAnim, {
-                toValue: -menuWidth, // Slide out
+                toValue: -menuWidth,
                 duration: 300,
                 useNativeDriver: true,
             }).start(() => setIsMenuOpen(false));
         } else {
             setIsMenuOpen(true);
             Animated.timing(slideAnim, {
-                toValue: 0, // Slide in
+                toValue: 0,
                 duration: 300,
                 useNativeDriver: true,
             }).start();
         }
     };
-
-    const renderCategory = ({ item }) => (
-        <TouchableOpacity style={styles.category}>
-            <Image name={item.icon} size={24} color="black" />
-            <Text style={styles.categoryText}>{item.name}</Text>
-        </TouchableOpacity>
-    );
-
     const renderProduct = ({ item }) => (
         <View style={styles.productCard}>
             <Image source={{ uri: item.image }} style={styles.productImage} />
@@ -119,18 +114,19 @@ const OnlineThriftStore = ({navigation}) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={toggleMenu}>
-                    <Ionicons style={styles.circle} name="menu-outline" size={28} color="Black" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Online Thrift Store</Text>
-                <TouchableOpacity>
-                    <Ionicons style={styles.circle} name="notifications-outline" size={28} color="Black" />
-                </TouchableOpacity>
-            </View>
+            <Header
+                title="Online Thrift Store"
+                onMenuPress={toggleMenu}
+                onNotificationsPress={() => console.log('Notifications Pressed')}
+            />
 
+            {/* Side Menu */}
+            <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} />
 
-            {/* Categories and Product Lists */}
+            {/* Overlay */}
+            {isMenuOpen && (
+                <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
+            )}
             <ScrollView>
                 <FlatList
                     horizontal
@@ -177,75 +173,16 @@ const OnlineThriftStore = ({navigation}) => {
             </ScrollView>
 
             {/* Footer */}
-            <View style={styles.footer}>
-                <Ionicons name="home-outline" size={28} />
-                <Ionicons name="heart-outline" size={28} />
-                <Ionicons name="person-outline" size={28} />
-            </View>
-
-            <Animated.View
-                style={[
-                    styles.sideMenu,
-                    { transform: [{ translateX: slideAnim }], width: menuWidth },
-                ]}
-            >
-                <TouchableOpacity onPress={toggleMenu}>
-                    <View style={{ flexDirection: 'row'}}>
-                        <Ionicons style={styles.circle} name="menu-outline" size={28} color="Black"/>
-                        <Text style={styles.menuTitle}>Hi, Ifra</Text>
-                    </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="home-outline" size={20} color="white" />
-                    <Text style={styles.menuText}>Home</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem}>
-                    <Ionicons name="notifications-outline" size={20} color="white" />
-                    <Text style={styles.menuText}>Notifications</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.menuItem}>
-                    <Ionicons name="log-out-outline" size={20} color="white" />
-                    <Text style={styles.menuText}>Log Out</Text>
-                </TouchableOpacity>
-            </Animated.View>
-
-            {/* Overlay */}
-            {isMenuOpen && (
-                <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
-
-            )}
-
+           <Footer />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        paddingTop: Platform.OS === 'ios' ? (StatusBar.currentHeight || 44) + 20 : 25, // Added extra padding for iOS and Android
-        backgroundColor: '#1A434E',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: 'white', // To ensure visibility on the dark background
-        textAlign: 'center', // Align title in the center
-        flex: 1, // Allow the title to take up the remaining space
-    },
-    circle: {
-        width: 30,
-        height: 30,
-        backgroundColor: '#fff',
-        borderRadius: 25,
-        borderWidth: 1,
-        borderColor: 'Black',
-        overflow: 'hidden',
+    backgroundContainer: {
+        height: '50%',
+        width: '112%',
     },
     circleicon: {
         width: 19,
@@ -385,44 +322,14 @@ const styles = StyleSheet.create({
         color: '#2c7a7b',
         marginTop: 5,
     },
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        left: 0,
-        backgroundColor: '#1A434E',
-        padding: 20,
-        zIndex: 10,
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        paddingTop: Platform.OS === 'ios' ? (StatusBar.currentHeight || 44) + 20 : 25, // Added extra padding for iOS and Android
-    },
-    menuTitle: {
-        marginTop: 5,
-        marginLeft: 75,
-        marginBottom: 35,
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 10,
-    },
-    menuText: {
-        marginLeft: 10,
-        fontSize: 16,
-        color: 'white',
-    },
     overlay: {
         position: 'absolute',
         top: 0,
         bottom: 0,
-        left: 0,
+        left: 182,
         right: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: 5,
+        zIndex: 500,
     },
 });
 
