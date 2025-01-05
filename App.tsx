@@ -6,6 +6,7 @@ import SignupView from './views/SignupView';
 import ForgetPasswordView from './views/ForgetPasswordView';
 import ProximityCheckView from './views/ProximityCheckView';
 import ChangePasswordView from "./views/ChangePasswordView"; // Import the new Proximity Check screen
+import HomeView from "./views/HomeView"; // Import the new Proximity Check screen
 
 const Stack = createStackNavigator();
 
@@ -25,6 +26,7 @@ export default function AppNavigator() {
                 <Stack.Screen name="Forgetpassword" component={ForgetPasswordView} />
                 <Stack.Screen name="ProximityCheck" component={ProximityCheckView} />
                 <Stack.Screen name="ChangePassword" component={ChangePasswordView} />
+                <Stack.Screen name="Home" component={HomeView} />
             </Stack.Navigator>
         </NavigationContainer>
     );
