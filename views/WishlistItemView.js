@@ -10,15 +10,63 @@ import useLocation from '../hooks/userLocation'; // Import useLocation hook
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.7;
 
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    const toRadians = (degrees) => (degrees * Math.PI) / 180;
+
+    const R = 6371; // Earth's radius in km
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+    return distance;
+};
+
 const WishlistView = ({ navigation }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
 
-    const { getUserLocation, latitude, longitude, address, errorMsg } = useLocation();
+    const [showLocation, setShowLocation] = useState(false); // Control visibility
+    const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
+    const [matchedSellers, setMatchedSellers] = useState([]);
+    const [nearbySellers, setNearbySellers] = useState([]); // Sellers within proximity
+
+    const handleGetLocation = async () => {
+        await getUserLocation(); // Fetch location
+        setShowLocation(true);   // Show location view
+    };
 
     useEffect(() => {
-        getUserLocation(); // Automatically fetch location when the component mounts
-    }, []);
+        const initializePage = async () => {
+            await handleGetLocation(); // Get user's current location
+            await matchAndGeocodeSellers(); // Match sellers and geocode addresses
+        };
+
+        initializePage(); // Call the initialization function
+    }, []); // Empty dependency array ensures this runs only once on mount
+
+
+
+    const findNearbySellers = () => {
+        if (!latitude || !longitude || matchedSellers.length === 0) return;
+
+        const nearby = matchedSellers.filter((seller) => {
+            const distance = haversineDistance(
+                parseFloat(latitude),
+                parseFloat(longitude),
+                seller.lat,
+                seller.lon
+            );
+            return distance <= 5; // Check if within 5km
+        });
+
+        setNearbySellers(nearby); // Update nearby sellers
+    };
 
     const toggleMenu = () => {
         if (isMenuOpen) {
@@ -38,14 +86,44 @@ const WishlistView = ({ navigation }) => {
     };
 
     const wishlistItems = [
-        'Vintage Leather Backpack',
-        'Wireless Headphones',
-        'Smart Fitness Watch',
-        'Handmade Ceramic Vase',
-        'Electric Mountain Bike',
-        'Premium Espresso Machine',
-        'Custom Wooden Bookshelf',
+        "iPhone 16",
+        "Macbook 2021",
+        "Smart Fitness Watch",
+        "Handmade Ceramic Vase",
+        "Electric Mountain Bike",
     ];
+
+    const sellers = [
+        { name: "Abdullah", address: "Lake City, Lahore", items: ["Macbook 2021", "iPhone 16"] },
+        { name: "Hamza", address: "Valencia, Lahore", items: ["iPhone 16", "Macbook 2021"] },
+        { name: "Ifra", address: "DHA Phase 5, Lahore", items: ["iPhone 16", "Electric Mountain Bike"] },
+        { name: "Saba", address: "Johar Town, Lahore", items: ["Smart Fitness Watch", "Macbook 2021"] },
+    ];
+
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const matchAndGeocodeSellers = async () => {
+        const matchingSellers = sellers.filter((seller) =>
+            seller.items.some((item) => wishlistItems.includes(item))
+        );
+
+        const geocodedResults = [];
+        for (const seller of matchingSellers) {
+            try {
+                const result = await geocodeAddress(seller.address); // Call geocodeAddress
+                if (result) {
+                    geocodedResults.push({ ...seller, lat: result.lat, lon: result.lon });
+                }
+                await delay(1000); // Add a 1-second delay between requests
+            } catch (error) {
+                console.error(`Error geocoding address for ${seller.name}:`, error);
+            }
+        }
+
+        setMatchedSellers(geocodedResults); // Set the state with geocoded results
+    };
+
+
 
     const renderWishlistItem = ({ item, index }) => (
         <View style={styles.itemContainer}>
@@ -103,24 +181,47 @@ const WishlistView = ({ navigation }) => {
                     />
                 </View>
             </View>
-            {/* Display Current Location and Address */}
-            <View style={styles.locationContainer}>
-                <Text style={styles.locationTitle}>Your Current Location:</Text>
-                {latitude && longitude ? (
-                    <>
-                        <Text style={styles.locationText}>
-                            Latitude: {latitude}, Longitude: {longitude}
-                        </Text>
-                        <Text style={styles.locationText}>
-                            Address: {address || "Fetching address..."}
-                        </Text>
-                    </>
-                ) : (
-                    <Text style={styles.locationText}>
-                        {errorMsg || "Fetching location..."}
-                    </Text>
+
+            <View>
+                {showLocation && (
+                    <View style={styles.locationContainer}>
+                        <Text style={styles.locationTitle}>Your Current Location:</Text>
+                        {latitude && longitude ? (
+                            <>
+                                <Text style={styles.locationText}>
+                                    Latitude: {latitude}, Longitude: {longitude}
+                                </Text>
+                                <Text style={styles.locationText}>
+                                    Address: {address || "Fetching address..."}
+                                </Text>
+                            </>
+                        ) : (
+                            <Text style={styles.locationText}>
+                                {errorMsg || "Fetching location..."}
+                            </Text>
+                        )}
+                    </View>
                 )}
             </View>
+
+            {/* Check Proximity Button */}
+            <TouchableOpacity style={styles.button} onPress={findNearbySellers}>
+                <Text style={styles.buttonText}>Check Proximity</Text>
+            </TouchableOpacity>
+
+            {/* Nearby Sellers */}
+            {nearbySellers.length > 0 && (
+                <View style={styles.locationContainer}>
+                    <Text style={styles.locationTitle}>Nearby Sellers:</Text>
+                    {nearbySellers.map((seller, index) => (
+                        <Text key={index} style={styles.locationText}>
+                            {`${seller.name} (Address: ${seller.address}) is near you, selling: ${seller.items.join(",")}`}
+                        </Text>
+                    ))}
+                </View>
+            )}
+
+
             {/* Footer */}
             <Footer />
         </View>
@@ -146,6 +247,7 @@ const styles = StyleSheet.create({
         color: '#1A434E',
         marginTop: 8,
     },
+
     locationContainer: {
         marginBottom: 16,
         padding: 10,
@@ -208,6 +310,21 @@ const styles = StyleSheet.create({
         right: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         zIndex: 500,
+    },
+    button: {
+        width: '60%',
+        backgroundColor: '#00494D',
+        borderRadius: 15,
+        paddingVertical: 15,
+        alignItems: 'center',
+        marginVertical: 20,
+        marginLeft: 80,
+
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
 });
 
