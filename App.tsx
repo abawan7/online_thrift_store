@@ -8,6 +8,7 @@ import ProximityCheckView from './views/ProximityCheckView';
 import ChangePasswordView from "./views/ChangePasswordView"; // Import the new Proximity Check screen
 import HomeView from "./views/HomeView"; // Import the new Proximity Check screen
 import WishtListView from "./views/WishlistItemView";
+import {StyleSheet, View} from "react-native";
 
 const Stack = createStackNavigator();
 

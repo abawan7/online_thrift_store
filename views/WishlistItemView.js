@@ -1,9 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import Header from './Header'; // Import Header component
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
+import useLocation from '../hooks/userLocation'; // Import useLocation hook
+
 
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.7;
@@ -11,6 +13,12 @@ const menuWidth = screenWidth * 0.7;
 const WishlistView = ({ navigation }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
+
+    const { getUserLocation, latitude, longitude, address, errorMsg } = useLocation();
+
+    useEffect(() => {
+        getUserLocation(); // Automatically fetch location when the component mounts
+    }, []);
 
     const toggleMenu = () => {
         if (isMenuOpen) {
@@ -95,8 +103,24 @@ const WishlistView = ({ navigation }) => {
                     />
                 </View>
             </View>
-
-
+            {/* Display Current Location and Address */}
+            <View style={styles.locationContainer}>
+                <Text style={styles.locationTitle}>Your Current Location:</Text>
+                {latitude && longitude ? (
+                    <>
+                        <Text style={styles.locationText}>
+                            Latitude: {latitude}, Longitude: {longitude}
+                        </Text>
+                        <Text style={styles.locationText}>
+                            Address: {address || "Fetching address..."}
+                        </Text>
+                    </>
+                ) : (
+                    <Text style={styles.locationText}>
+                        {errorMsg || "Fetching location..."}
+                    </Text>
+                )}
+            </View>
             {/* Footer */}
             <Footer />
         </View>
@@ -121,6 +145,22 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#1A434E',
         marginTop: 8,
+    },
+    locationContainer: {
+        marginBottom: 16,
+        padding: 10,
+        borderRadius: 8,
+        backgroundColor: "#E6F7FF",
+    },
+    locationTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#333",
+        marginBottom: 4,
+    },
+    locationText: {
+        fontSize: 14,
+        color: "#555",
     },
     underline: {
         width: 150,
