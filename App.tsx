@@ -8,7 +8,7 @@ import ProximityCheckView from './views/ProximityCheckView';
 import ChangePasswordView from "./views/ChangePasswordView"; // Import the new Proximity Check screen
 import HomeView from "./views/HomeView"; // Import the new Proximity Check screen
 import WishtListView from "./views/WishlistItemView";
-import {StyleSheet, View} from "react-native";
+import Notification from './views/NotificationView'; // Import NotificationScreen
 
 const Stack = createStackNavigator();
 
@@ -30,6 +30,11 @@ export default function AppNavigator() {
                 <Stack.Screen name="ChangePassword" component={ChangePasswordView} />
                 <Stack.Screen name="Home" component={HomeView} />
                 <Stack.Screen name="Wishlist" component={WishtListView} />
+                <Stack.Screen
+                    name="NotificationScreen"
+                    component={Notification}
+                    options={{ headerTitle: 'Notifications' }}
+                />
             </Stack.Navigator>
         </NavigationContainer>
     );

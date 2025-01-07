@@ -35,6 +35,7 @@ const WishlistView = ({ navigation }) => {
     const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
     const [matchedSellers, setMatchedSellers] = useState([]);
     const [nearbySellers, setNearbySellers] = useState([]); // Sellers within proximity
+    const [isLoading, setIsLoading] = useState(true); // Loading state for button
 
     const handleGetLocation = async () => {
         await getUserLocation(); // Fetch location
@@ -45,6 +46,7 @@ const WishlistView = ({ navigation }) => {
         const initializePage = async () => {
             await handleGetLocation(); // Get user's current location
             await matchAndGeocodeSellers(); // Match sellers and geocode addresses
+            setIsLoading(false); // Enable the button after loading
         };
 
         initializePage(); // Call the initialization function
@@ -94,17 +96,79 @@ const WishlistView = ({ navigation }) => {
     ];
 
     const sellers = [
-        { name: "Abdullah", address: "Lake City, Lahore", items: ["Macbook 2021", "iPhone 16"] },
-        { name: "Hamza", address: "Valencia, Lahore", items: ["iPhone 16", "Macbook 2021"] },
-        { name: "Ifra", address: "DHA Phase 5, Lahore", items: ["iPhone 16", "Electric Mountain Bike"] },
-        { name: "Saba", address: "Johar Town, Lahore", items: ["Smart Fitness Watch", "Macbook 2021"] },
+        {
+            name: "Abdullah",
+            address: "Lake City, Lahore",
+            items: [
+                {
+                    name: "Macbook 2021",
+                    price: 200000,
+                    image: "https://appleshop.com.pk/wp-content/uploads/2021/10/mbp14-spacegray-gallery5.jpg",
+                },
+                {
+                    name: "iPhone 16",
+                    price: 150000,
+                    image: "https://mac-center.com.pr/cdn/shop/files/iPhone_16_Pro_Max_Desert_Titanium_PDP_Image_Position_1__en-US_d5e2a09b-4a28-4e79-a2f6-92ae40158896.jpg?v=1726226760&width=823",
+                },
+            ],
+        },
+        {
+            name: "Hamza",
+            address: "Valencia, Lahore",
+            items: [
+                {
+                    name: "iPhone 16",
+                    price: 145000,
+                    image: "https://mac-center.com.pr/cdn/shop/files/iPhone_16_Pro_Max_Desert_Titanium_PDP_Image_Position_1__en-US_d5e2a09b-4a28-4e79-a2f6-92ae40158896.jpg?v=1726226760&width=823",
+                },
+                {
+                    name: "Macbook 2021",
+                    price: 198000,
+                    image: "https://appleshop.com.pk/wp-content/uploads/2021/10/mbp14-spacegray-gallery5.jpg",
+                },
+            ],
+        },
+        {
+            name: "Ifra",
+            address: "DHA Phase 5, Lahore",
+            items: [
+                {
+                    name: "iPhone 16",
+                    price: 148000,
+                    image: "https://mac-center.com.pr/cdn/shop/files/iPhone_16_Pro_Max_Desert_Titanium_PDP_Image_Position_1__en-US_d5e2a09b-4a28-4e79-a2f6-92ae40158896.jpg?v=1726226760&width=823",
+                },
+                {
+                    name: "Electric Mountain Bike",
+                    price: 50000,
+                    image: "https://via.placeholder.com/150/mountainbike",
+                },
+            ],
+        },
+        {
+            name: "Saba",
+            address: "Johar Town, Lahore",
+            items: [
+                {
+                    name: "Smart Fitness Watch",
+                    price: 10000,
+                    image: "https://via.placeholder.com/150/fitnesswatch",
+                },
+                {
+                    name: "Macbook 2021",
+                    price: 199000,
+                    image: "https://appleshop.com.pk/wp-content/uploads/2021/10/mbp14-spacegray-gallery5.jpg",
+                },
+            ],
+        },
     ];
+
 
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     const matchAndGeocodeSellers = async () => {
+        // Filter sellers whose items match any item in the wishlist
         const matchingSellers = sellers.filter((seller) =>
-            seller.items.some((item) => wishlistItems.includes(item))
+            seller.items.some((item) => wishlistItems.includes(item.name)) // Compare item names
         );
 
         const geocodedResults = [];
@@ -112,6 +176,7 @@ const WishlistView = ({ navigation }) => {
             try {
                 const result = await geocodeAddress(seller.address); // Call geocodeAddress
                 if (result) {
+                    // Add latitude and longitude to the seller object
                     geocodedResults.push({ ...seller, lat: result.lat, lon: result.lon });
                 }
                 await delay(1000); // Add a 1-second delay between requests
@@ -204,22 +269,33 @@ const WishlistView = ({ navigation }) => {
                 )}
             </View>
 
-            {/* Check Proximity Button */}
-            <TouchableOpacity style={styles.button} onPress={findNearbySellers}>
-                <Text style={styles.buttonText}>Check Proximity</Text>
-            </TouchableOpacity>
+            <TouchableOpacity
+                style={styles.button}
+                disabled={isLoading}
+                onPress={async () => {
+                    // Call findNearbySellers and wait for it to complete
+                    await findNearbySellers();
 
-            {/* Nearby Sellers */}
-            {nearbySellers.length > 0 && (
-                <View style={styles.locationContainer}>
-                    <Text style={styles.locationTitle}>Nearby Sellers:</Text>
-                    {nearbySellers.map((seller, index) => (
-                        <Text key={index} style={styles.locationText}>
-                            {`${seller.name} (Address: ${seller.address}) is near you, selling: ${seller.items.join(",")}`}
-                        </Text>
-                    ))}
-                </View>
-            )}
+                    // Ensure that the nearbySellers array is populated before navigating
+                    if (nearbySellers.length > 0) {
+                        navigation.navigate('NotificationScreen', {
+                            notifications: nearbySellers.map((seller) => ({
+                                title: `Seller ${seller.name} is nearby! In ${seller.address}`,
+                                time: 'Just now',
+                                items: seller.items.filter((item) => wishlistItems.includes(item.name)), // Filter only items in the wishlist
+                                location: seller.address,
+                                sellerImage: 'https://static.vecteezy.com/system/resources/thumbnails/005/544/718/small_2x/profile-icon-design-free-vector.jpg', // Placeholder image for the seller
+                            })),
+                        });
+                    } else {
+                        alert('No nearby sellers found.');
+                    }
+                }}
+            >
+                <Text style={styles.buttonText}>
+                    {isLoading ? "Matching..." : "Check Proximity"}
+                </Text>
+            </TouchableOpacity>
 
 
             {/* Footer */}
