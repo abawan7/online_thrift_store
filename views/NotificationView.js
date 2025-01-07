@@ -3,8 +3,10 @@ import { View, StyleSheet, FlatList, Text, TouchableOpacity, Image } from 'react
 import Header from './Header'; // Import Header component
 import Footer from './FooterView';
 import {Ionicons} from "@expo/vector-icons";
+import { useNavigation } from '@react-navigation/native'; // Import navigation ho
 
 const NotificationScreen = ({ route, navigation }) => {
+    const navigate = useNavigation(); // Initialize navigation
     const { notifications } = route.params; // Get notifications from route params
 
     const renderNotificationItem = ({ item }) => (

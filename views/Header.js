@@ -1,8 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native'; // Impor
 
 const Header = ({ title, onMenuPress, onNotificationsPress }) => {
+    const navigation = useNavigation(); // Initialize navigation
+    const handleNotificationsPress = () => {
+        // Navigate to NotificationScreen
+        navigation.navigate('NotificationScreen', {});
+    };
     return (
         <View style={styles.header}>
             {/* Menu Icon */}
@@ -16,7 +22,7 @@ const Header = ({ title, onMenuPress, onNotificationsPress }) => {
             <Text style={styles.headerTitle}>{title}</Text>
 
             {/* Notifications Icon */}
-            <TouchableOpacity onPress={onNotificationsPress}>
+            <TouchableOpacity onPress={handleNotificationsPress}>
                 <View style={styles.iconWrapper}>
                     <Ionicons name="notifications-outline" size={25} color="black" />
                 </View>
