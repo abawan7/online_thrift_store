@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, FlatList, Text, TouchableOpacity, Image } from 'react-native';
+import {View, StyleSheet, FlatList, Text, TouchableOpacity, Image, Animated} from 'react-native';
 import Header from './Header'; // Import Header component
 import Footer from './FooterView';
 import {Ionicons} from "@expo/vector-icons";
@@ -8,6 +8,23 @@ import { useNavigation } from '@react-navigation/native'; // Import navigation h
 const NotificationScreen = ({ route, navigation }) => {
     const navigate = useNavigation(); // Initialize navigation
     const { notifications } = route.params; // Get notifications from route params
+
+    const toggleMenu = () => {
+        if (isMenuOpen) {
+            Animated.timing(slideAnim, {
+                toValue: -menuWidth,
+                duration: 300,
+                useNativeDriver: true,
+            }).start(() => setIsMenuOpen(false));
+        } else {
+            setIsMenuOpen(true);
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }).start();
+        }
+    };
 
     const renderNotificationItem = ({ item }) => (
         <View style={styles.notificationCard}>
@@ -48,7 +65,7 @@ const NotificationScreen = ({ route, navigation }) => {
         <View style={styles.container}>
             <Header
                 title="Notifications"
-                onMenuPress={() => navigation.goBack()} // Go back to the previous screen
+                onMenuPress={toggleMenu}
                 onNotificationsPress={() => console.log('Notifications Pressed')}
             />
             <Text style={styles.header}>Notifications</Text>

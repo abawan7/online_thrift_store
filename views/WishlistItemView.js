@@ -114,7 +114,7 @@ const WishlistView = ({ navigation }) => {
         },
         {
             name: "Hamza",
-            address: "Valencia, Lahore",
+            address: "Like City, Lahore",
             items: [
                 {
                     name: "iPhone 16",
