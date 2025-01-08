@@ -98,7 +98,7 @@ const WishlistView = ({ navigation }) => {
     const sellers = [
         {
             name: "Abdullah",
-            address: "Lake City, Lahore",
+            address: "Faisal Town, Lahore",
             items: [
                 {
                     name: "Macbook 2021",
@@ -114,7 +114,7 @@ const WishlistView = ({ navigation }) => {
         },
         {
             name: "Hamza",
-            address: "Like City, Lahore",
+            address: "Valencia, Lahore",
             items: [
                 {
                     name: "iPhone 16",
@@ -146,7 +146,7 @@ const WishlistView = ({ navigation }) => {
         },
         {
             name: "Saba",
-            address: "Johar Town, Lahore",
+            address: "Lake city, Lahore",
             items: [
                 {
                     name: "Smart Fitness Watch",
