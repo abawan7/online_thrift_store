@@ -14,7 +14,7 @@ const Header = ({ title, onMenuPress, onNotificationsPress }) => {
             {/* Menu Icon */}
             <TouchableOpacity onPress={onMenuPress}>
                 <View style={styles.iconWrapper}>
-                    <Ionicons name="menu-outline" size={25} color="black" />
+                    <Ionicons name="menu" size={25} color="#1A434E" />
                 </View>
             </TouchableOpacity>
 
@@ -24,7 +24,7 @@ const Header = ({ title, onMenuPress, onNotificationsPress }) => {
             {/* Notifications Icon */}
             <TouchableOpacity onPress={handleNotificationsPress}>
                 <View style={styles.iconWrapper}>
-                    <Ionicons name="notifications-outline" size={25} color="black" />
+                    <Ionicons name="notifications" size={25} color="#1A434E" />
                 </View>
             </TouchableOpacity>
         </View>

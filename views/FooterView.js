@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native'; // Import the useNavigation hook
+import {MaterialIcons } from "@expo/vector-icons";
 
 const Footer = () => {
     const navigation = useNavigation(); // Get the navigation object
@@ -9,18 +10,23 @@ const Footer = () => {
     return (
         <View style={styles.footer}>
             <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Home')}>
-                <Ionicons name="home-outline" size={25} color="black" />
+                <Ionicons name="home-outline" size={25} color="#1A434E" />
                 <Text style={styles.footerText}>Home</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Wishlist')}>
-                <Ionicons name="bag-outline" size={25} color="black" />
+                <Ionicons name="bag-outline" size={25} color="#1A434E" />
                 <Text style={styles.footerText}>WishList</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Profile')}>
-                <Ionicons name="person-outline" size={25} color="black" />
+                <Ionicons name="person-outline" size={25} color="#1A434E" />
                 <Text style={styles.footerText}>Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('chatbot')}>
+            <MaterialIcons name="smart-toy" size={24}  />
+                <Text style={styles.footerText}>Chatbot</Text>
             </TouchableOpacity>
         </View>
     );
