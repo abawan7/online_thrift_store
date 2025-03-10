@@ -9,17 +9,27 @@ import {
     Platform,
     ScrollView,
     TouchableWithoutFeedback,
-    Keyboard
+    Keyboard,
+    Animated,
+    Dimensions
 } from 'react-native';
 import Header from './Header';
 import Footer from './FooterView';
+import SideMenu from './SideMenu';
 import { Ionicons } from "@expo/vector-icons";
 
-const ChatbotView = () => {
-    const [message, setMessage] = useState('');
-    const [messages, setMessages] = useState([]);
+const screenWidth = Dimensions.get('window').width;
+const menuWidth = screenWidth * 0.5;
 
-    const scrollViewRef = useRef();
+interface Message {
+    id: string;
+    text: string;
+}
+
+const ChatbotView: React.FC = () => {
+    const [message, setMessage] = useState('');
+    const [messages, setMessages] = useState<Message[]>([]);
+    const scrollViewRef = useRef<ScrollView>(null);
 
     const sendMessage = () => {
         if (message.trim()) {
@@ -32,10 +42,38 @@ const ChatbotView = () => {
         }
     };
 
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
+    
+    const toggleMenu = () => {
+        if (isMenuOpen) {
+            Animated.timing(slideAnim, {
+                toValue: -menuWidth,
+                duration: 300,
+                useNativeDriver: true,
+            }).start(() => setIsMenuOpen(false));
+        } else {
+            setIsMenuOpen(true);
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }).start();
+        }
+    };
+
     return (
         <View style={styles.container}>
-            <Header title="Chatbot" />
+            <Header
+                title="Chatbot"
+                onMenuPress={toggleMenu}
+                onNotificationsPress={() => console.log('Notifications Pressed')}
+            />
 
+            <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} menuWidth={menuWidth}/>
+            {isMenuOpen && (
+                <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
+            )}
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={styles.chatArea}
@@ -58,7 +96,6 @@ const ChatbotView = () => {
                             ))}
                         </ScrollView>
 
-                        {/* Chat Input Field */}
                         <View style={styles.inputContainer}>
                             <TouchableOpacity style={styles.iconWrapper}>
                                 <Ionicons name="attach-outline" size={24} color="white" />
@@ -96,10 +133,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     messagesContainer: {
-        
         maxHeight: '85%', 
         paddingHorizontal: 10,
-        paddingTop: 10, 
+        paddingTop: 10,
+        width: '100%',
     },
     messageBubble: {
         backgroundColor: 'white',
@@ -147,6 +184,15 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         paddingVertical: 8,
         paddingHorizontal: 10,
+    },
+    overlay: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: screenWidth - menuWidth,
+        right: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 500,
     },
 });
 

@@ -1,27 +1,34 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native'; // Impor
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 
-const Header = ({ title, onMenuPress, onNotificationsPress }) => {
-    const navigation = useNavigation(); // Initialize navigation
+interface HeaderProps {
+    title: string;
+    onMenuPress: () => void;
+    onNotificationsPress?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ title, onMenuPress, onNotificationsPress }) => {
+    const navigation = useNavigation<NativeStackNavigationProp<any>>();
+    
     const handleNotificationsPress = () => {
-        // Navigate to NotificationScreen
-        navigation.navigate('NotificationScreen', {});
+        if (onNotificationsPress) {
+            onNotificationsPress();
+        } else {
+            navigation.navigate('NotificationScreen');
+        }
     };
+
     return (
         <View style={styles.header}>
-            {/* Menu Icon */}
             <TouchableOpacity onPress={onMenuPress}>
                 <View style={styles.iconWrapper}>
                     <Ionicons name="menu" size={25} color="#1A434E" />
                 </View>
             </TouchableOpacity>
-
-            {/* Title */}
             <Text style={styles.headerTitle}>{title}</Text>
-
-            {/* Notifications Icon */}
             <TouchableOpacity onPress={handleNotificationsPress}>
                 <View style={styles.iconWrapper}>
                     <Ionicons name="notifications" size={25} color="#1A434E" />

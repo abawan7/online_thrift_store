@@ -1,4 +1,4 @@
-import React, {useRef, useState} from 'react';
+import React, { useRef, useState } from 'react';
 import Header from './Header';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
@@ -13,15 +13,36 @@ import {
     Animated,
     Dimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar, Platform } from 'react-native';
 
+// ✅ Define navigation types
+type RootStackParamList = {
+    Home: undefined;
+};
+
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const screenWidth = Dimensions.get('window').width;
-const menuWidth = screenWidth * 0.7;
+const menuWidth = screenWidth * 0.5;
 
-const categories = [
+// ✅ Define types for category and product
+interface Category {
+    id: string;
+    name: string;
+    image: any;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    location: string;
+    price: string;
+    image: string;
+}
+
+// ✅ Sample categories and products data
+const categories: Category[] = [
     { id: '1', name: 'Decoration', image: require('../assets/Decoration.png') },
     { id: '2', name: 'Fashion', image: require('../assets/Fashion.png') },
     { id: '3', name: 'Appliance', image: require('../assets/Appliance.png') },
@@ -29,8 +50,7 @@ const categories = [
     { id: '5', name: 'Gadgets', image: require('../assets/Gadgets.png') },
 ];
 
-
-const products = [
+const products: Product[] = [
     {
         id: '1',
         name: 'Handball Spezial Shoes',
@@ -66,17 +86,10 @@ const products = [
         price: 'PKR 250,000',
         image: 'https://www.notebookcheck.net/fileadmin/_processed_/8/5/csm_Unbenannt_1_394618d40b.jpg',
     },
-    {
-        id: '6',
-        name: 'Iphone 16 Pro”',
-        location: 'J2 Johar Town, Lahore Pakistan',
-        price: 'PKR 650,000',
-        image: 'https://regen.pk/cdn/shop/products/iphone-12-pro-451726_e0de9640-4bd6-4ba1-bbfa-f9729b57c376.jpg?v=1674907298',
-    },
 ];
 
-const OnlineThriftStore = ({navigation}) => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+const HomeView: React.FC<HomeScreenProps> = ({ navigation }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
     const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
 
     const toggleMenu = () => {
@@ -95,7 +108,8 @@ const OnlineThriftStore = ({navigation}) => {
             }).start();
         }
     };
-    const renderProduct = ({ item }) => (
+
+    const renderProduct = ({ item }: { item: Product }) => (
         <View style={styles.productCard}>
             <Image source={{ uri: item.image }} style={styles.productImage} />
             <View style={styles.productInfo}>
@@ -114,19 +128,14 @@ const OnlineThriftStore = ({navigation}) => {
 
     return (
         <View style={styles.container}>
-            <Header
-                title="Online Thrift Store"
-                onMenuPress={toggleMenu}
-                onNotificationsPress={() => console.log('Notifications Pressed')}
-            />
+            <Header title="Online Thrift Store" onMenuPress={toggleMenu} />
 
             {/* Side Menu */}
-            <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} />
+            <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} menuWidth={menuWidth} />
 
             {/* Overlay */}
-            {isMenuOpen && (
-                <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
-            )}
+            {isMenuOpen && <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />}
+
             <ScrollView>
                 <FlatList
                     horizontal
@@ -148,35 +157,15 @@ const OnlineThriftStore = ({navigation}) => {
                     keyExtractor={(item) => item.id}
                     showsHorizontalScrollIndicator={false}
                 />
-                <Text style={styles.sectionTitle}>Recently Added</Text>
-                <FlatList
-                    data={products}
-                    renderItem={({ item }) => (
-                        <View style={styles.recentProductCard}>
-                            <Image source={{ uri: item.image }} style={styles.recentProductImage} />
-                            <Text style={styles.recentProductName}>{item.name}</Text>
-                            <Text style={styles.recentProductLocation}>
-                                <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
-                            </Text>
-                            <View style={styles.recentProductActions}>
-                                <Ionicons style={styles.circleicon} name="cart-outline" size={16} color="black" />
-                                <Ionicons style={[styles.circleicon, { marginLeft: 10 }]} name="heart-outline" size={16} color="black" />
-                            </View>
-                            <Text style={styles.recentProductPrice}>{item.price}</Text>
-                        </View>
-                    )}
-                    keyExtractor={(item) => item.id}
-                    numColumns={2}
-                    columnWrapperStyle={styles.recentProductRow}
-                />
-
             </ScrollView>
 
             {/* Footer */}
-           <Footer />
+            <Footer />
         </View>
     );
 };
+
+
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
@@ -326,11 +315,11 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 0,
         bottom: 0,
-        left: 182,
+        left: screenWidth - menuWidth,
         right: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         zIndex: 500,
     },
 });
 
-export default OnlineThriftStore;
+export default HomeView;

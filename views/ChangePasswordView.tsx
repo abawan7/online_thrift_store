@@ -1,14 +1,31 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
+import {
+    StyleSheet,
+    Text,
+    View,
+    TextInput,
+    TouchableOpacity,
+    ImageBackground,
+    Dimensions,
+} from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+interface ChangePasswordViewProps {
+    navigation: NativeStackNavigationProp<any, any>;
+}
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
 
-export default function ChangePasswordView({ navigation }) {
+const ChangePasswordView: React.FC<ChangePasswordViewProps> = ({ navigation }) => {
     return (
-        <ImageBackground source={require('../assets/Login_page_background.png')} style={styles.container} imageStyle={styles.backgroundImage}>
+        <ImageBackground
+            source={require('../assets/Login_page_background.png')}
+            style={styles.container}
+            imageStyle={styles.backgroundImage}
+        >
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Login')}>
                 <View style={styles.circle}>
                     <FontAwesome name="arrow-left" size={24} color="#000" />
@@ -22,7 +39,7 @@ export default function ChangePasswordView({ navigation }) {
                     <TextInput
                         style={styles.input}
                         placeholder="Password"
-                        secureTextEntry={true}
+                        secureTextEntry
                         placeholderTextColor="#888"
                     />
                 </View>
@@ -32,7 +49,7 @@ export default function ChangePasswordView({ navigation }) {
                     <TextInput
                         style={styles.input}
                         placeholder="Confirm Password"
-                        secureTextEntry={true}
+                        secureTextEntry
                         placeholderTextColor="#888"
                     />
                 </View>
@@ -44,7 +61,7 @@ export default function ChangePasswordView({ navigation }) {
             <StatusBar style="auto" />
         </ImageBackground>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
@@ -96,12 +113,6 @@ const styles = StyleSheet.create({
         height: '100%',
         fontSize: 18,
     },
-    forgotPassword: {
-        alignSelf: 'flex-end',
-        color: '#007BFF',
-        marginVertical: 10,
-        fontSize: 14,
-    },
     loginButton: {
         width: '100%',
         backgroundColor: '#00494D',
@@ -115,19 +126,11 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    signupText: {
-        color: '#555',
-        fontSize: 14,
-    },
-    signupLink: {
-        color: '#007BFF',
-        fontWeight: 'bold',
-    },
     backButton: {
         position: 'absolute',
         top: 50,
         left: 20,
-        zIndex: 1, // Ensure it stays on top of other elements
+        zIndex: 1,
     },
     circle: {
         width: 35,
@@ -141,7 +144,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 6.27,
         elevation: 10,
-        borderWidth: 2, // Thickness of the stroke
-        borderColor: '#000000', // Color of the stroke
+        borderWidth: 2,
+        borderColor: '#000000',
     },
 });
+
+export default ChangePasswordView;

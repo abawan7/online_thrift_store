@@ -1,31 +1,41 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  ImageBackground,
+  Dimensions,
+} from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
+
+// Define the navigation prop type
+interface LoginViewProps {
+  navigation: NativeStackNavigationProp<any, any>;
+}
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
 
-export default function SignupView({ navigation }) {
+const LoginView: React.FC<LoginViewProps> = ({ navigation }) => {
   return (
-    <ImageBackground source={require('../assets/Login_page_background.png')} style={styles.container} imageStyle={styles.backgroundImage}>
-      <View style={styles.signupBox}>
-        <Text style={styles.title}>Sign Up</Text>
+    <ImageBackground
+      source={require('../assets/Login_page_background.png')}
+      style={styles.container}
+      imageStyle={styles.backgroundImage}
+    >
+      <View style={styles.loginBox}>
+        <Text style={styles.title}>Login</Text>
 
         <View style={styles.inputContainer}>
           <FontAwesome name="user" size={20} color="#888" style={styles.icon} />
           <TextInput
             style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#888"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <FontAwesome name="user" size={20} color="#888" style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
+            placeholder="Email or username"
             placeholderTextColor="#888"
           />
         </View>
@@ -40,40 +50,24 @@ export default function SignupView({ navigation }) {
           />
         </View>
 
-        <View style={styles.inputContainer}>
-          <FontAwesome name="key" size={20} color="#888" style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            secureTextEntry={true}
-            placeholderTextColor="#888"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <FontAwesome name="phone" size={20} color="#888" style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Number"
-            keyboardType="phone-pad"
-            placeholderTextColor="#888"
-          />
-        </View>
-
-        <TouchableOpacity style={styles.signupButton}>
-          <Text style={styles.signupButtonText}>Sign Up</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Forgetpassword')}>
+          <Text style={styles.forgotPassword}>Forget Password?</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.loginText}>
-            Already have an account? <Text style={styles.loginLink}>Sign In</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Home')}>
+          <Text style={styles.loginButtonText}>Login</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+          <Text style={styles.signupText}>
+            Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
           </Text>
         </TouchableOpacity>
       </View>
       <StatusBar style="auto" />
     </ImageBackground>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -86,7 +80,8 @@ const styles = StyleSheet.create({
     height: '50%',
     width: '112%',
   },
-  signupBox: {
+  loginBox: {
+    height: '60%',
     width: '112%',
     backgroundColor: '#fff',
     borderRadius: 30,
@@ -124,7 +119,13 @@ const styles = StyleSheet.create({
     height: '100%',
     fontSize: 18,
   },
-  signupButton: {
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    color: '#007BFF',
+    marginVertical: 10,
+    fontSize: 14,
+  },
+  loginButton: {
     width: '100%',
     backgroundColor: '#00494D',
     borderRadius: 15,
@@ -132,17 +133,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  signupButtonText: {
+  loginButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  loginText: {
+  signupText: {
     color: '#555',
     fontSize: 14,
   },
-  loginLink: {
+  signupLink: {
     color: '#007BFF',
     fontWeight: 'bold',
   },
 });
+
+export default LoginView;
