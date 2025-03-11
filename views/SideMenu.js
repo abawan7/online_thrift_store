@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, Animated } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native'; // Import the useNavigation hook
+import AuthController from '../controllers/AuthController';  // Import the AuthController
 
 const SideMenu = ({ slideAnim, toggleMenu, menuWidth }) => {
     const navigation = useNavigation(); // Get the navigation object
@@ -27,7 +28,7 @@ const SideMenu = ({ slideAnim, toggleMenu, menuWidth }) => {
                 <Ionicons name="notifications-outline" size={20} color="white" />
                 <Text style={styles.menuText}>Notifications</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.menuItem}>
+            <TouchableOpacity onPress={() => AuthController.handleLogout(navigation)} style={styles.menuItem}>
                 <Ionicons name="log-out-outline" size={20} color="white" />
                 <Text style={styles.menuText}>Log Out</Text>
             </TouchableOpacity>

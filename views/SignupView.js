@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import AuthController from '../controllers/AuthController';  // Import the AuthController
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
@@ -60,11 +61,11 @@ export default function SignupView({ navigation }) {
           />
         </View>
 
-        <TouchableOpacity style={styles.signupButton}>
+        <TouchableOpacity style={styles.signupButton} onPress={() => AuthController.signIn(navigation)}>
           <Text style={styles.signupButtonText}>Sign Up</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+        <TouchableOpacity onPress={() => AuthController.signIn(navigation)}>
           <Text style={styles.loginText}>
             Already have an account? <Text style={styles.loginLink}>Sign In</Text>
           </Text>
