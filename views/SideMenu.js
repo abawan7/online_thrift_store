@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, Animated
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native'; // Import the useNavigation hook
 import AuthController from '../controllers/AuthController';  // Import the AuthController
+import HomeController from '../controllers/HomeController';  // Import the AuthController
 
 const SideMenu = ({ slideAnim, toggleMenu, menuWidth }) => {
     const navigation = useNavigation(); // Get the navigation object
@@ -20,7 +21,7 @@ const SideMenu = ({ slideAnim, toggleMenu, menuWidth }) => {
                 </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => HomeController.renderHomePage(navigation)}>
                 <Ionicons name="home-outline" size={20} color="white" />
                 <Text style={styles.menuText}>Home</Text>
             </TouchableOpacity>

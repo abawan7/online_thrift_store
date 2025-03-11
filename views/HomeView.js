@@ -104,9 +104,13 @@ const OnlineThriftStore = ({navigation}) => {
                     <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
                 </Text>
                 <View style={styles.productActions}>
-                    <Ionicons style={styles.circleicon} name="cart-outline" size={16} color="black" />
-                    <Ionicons style={[styles.circleicon, { marginLeft: 10 }]} name="heart-outline" size={16} color="black" />
+                <View style={styles.circleicon}>
+                    <Ionicons name="cart-outline" size={16} color="black" />
                 </View>
+                <View style={styles.circleicon}>
+                    <Ionicons name="heart-outline" size={16} color="black" />
+                </View>
+            </View>
                 <Text style={styles.productPrice}>{item.price}</Text>
             </View>
         </View>
@@ -185,14 +189,19 @@ const styles = StyleSheet.create({
         width: '112%',
     },
     circleicon: {
-        width: 19,
-        height: 19,
+        width: 22,
+        height: 22,
+        marginLeft:8,
         backgroundColor: '#fff',
         borderRadius: 25,
         borderWidth: 1,
         borderColor: 'Black',
         overflow: 'hidden',
+        justifyContent: 'center',  // Center the icon vertically
+        alignItems: 'center',      // Center the icon horizontally
+        display: 'flex',           // Use flexbox to center the icon inside the circle
     },
+    
     categoryImage: {
         width: 50,
         height: 50,

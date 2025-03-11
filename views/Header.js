@@ -6,7 +6,6 @@ import { useNavigation } from '@react-navigation/native'; // Impor
 const Header = ({ title, onMenuPress, onNotificationsPress }) => {
     const navigation = useNavigation(); // Initialize navigation
     const handleNotificationsPress = () => {
-        // Navigate to NotificationScreen
         navigation.navigate('NotificationScreen', {});
     };
     return (
