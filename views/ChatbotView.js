@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     },
     botIntroText: {
         fontSize: 16,
-        color: '#1A434E',
+        color: '#818589',
         textAlign: 'center',
         paddingHorizontal: 20,
         marginTop:10,
@@ -198,8 +198,9 @@ const styles = StyleSheet.create({
         letterSpacing: 0.9,
         lineHeight: 22, 
         fontFamily: 'Time New Roman',
-
-
+        textShadowColor: 'rgba(0, 0, 0, 0.3)', 
+        textShadowOffset: { width: 1, height: 1 }, 
+        textShadowRadius: 3, 
     },
     messageWrapper: {
         alignItems: 'flex-end', 
