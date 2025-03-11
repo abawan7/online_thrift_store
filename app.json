@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "online_thrift_store",
-    "slug": "online_thrift_store",
+    "name": "my-new-project",
+    "slug": "my-new-project",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
-import { MaterialIcons } from "@expo/vector-icons";
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native'; // Import the useNavigation hook
+import {MaterialIcons } from "@expo/vector-icons";
 
-const Footer: React.FC = () => {
-    const navigation = useNavigation<NativeStackNavigationProp<any>>();
+const Footer = () => {
+    const navigation = useNavigation(); // Get the navigation object
 
     return (
         <View style={styles.footer}>
@@ -20,8 +19,8 @@ const Footer: React.FC = () => {
                 <Text style={styles.footerText}>WishList</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Chatbot')}>
-                <MaterialIcons name="smart-toy" size={24} color="#1A434E" />
+            <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('chatbot')}>
+            <MaterialIcons name="smart-toy" size={24}  />
                 <Text style={styles.footerText}>Chatbot</Text>
             </TouchableOpacity>
 

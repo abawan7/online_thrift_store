@@ -2,11 +2,11 @@ import { useState } from "react";
 import * as Location from "expo-location";
 
 const useLocation = () => {
-    const [latitude, setLatitude] = useState<string | null>(null);
-    const [longitude, setLongitude] = useState<string | null>(null);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
-    const [address, setAddress] = useState<string | null>(null);
-    const [geocodedLocation, setGeocodedLocation] = useState<{ lat: number; lon: number } | null>(null);
+    const [latitude, setLatitude] = useState(null);
+    const [longitude, setLongitude] = useState(null);
+    const [errorMsg, setErrorMsg] = useState(null);
+    const [address, setAddress] = useState(null);
+    const [geocodedLocation, setGeocodedLocation] = useState(null);
 
     // Get user's current location
     const getUserLocation = async () => {
@@ -39,9 +39,8 @@ const useLocation = () => {
         }
     };
 
-
     // Reverse geocode to get address from latitude and longitude
-    const reverseGeocode = async (lat: number, lon: number) => {
+    const reverseGeocode = async (lat, lon) => {
         try {
             const reverseGeocodedAddress = await Location.reverseGeocodeAsync({
                 latitude: lat,
@@ -61,7 +60,7 @@ const useLocation = () => {
     };
 
     // Geocode an address to get latitude and longitude
-    const geocodeAddress = async (inputAddress: string) => {
+    const geocodeAddress = async (inputAddress) => {
         try {
             const results = await Location.geocodeAsync(inputAddress);
             if (results.length > 0) {
@@ -80,7 +79,6 @@ const useLocation = () => {
             return null;
         }
     };
-
 
     return {
         getUserLocation,

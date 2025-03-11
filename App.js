@@ -7,7 +7,7 @@ import ForgetPasswordView from './views/ForgetPasswordView';
 import ChangePasswordView from "./views/ChangePasswordView"; // Import the new Proximity Check screen
 import HomeView from "./views/HomeView"; // Import the new Proximity Check screen
 import WishtListView from "./views/WishlistItemView";
-import NotificationView from './views/NotificationView'; // Import NotificationScreen
+import Notification from './views/NotificationView'; // Import NotificationScreen
 import ChatbotView from './views/ChatbotView';
 
 const Stack = createStackNavigator();
@@ -29,14 +29,13 @@ export default function AppNavigator() {
                 <Stack.Screen name="ChangePassword" component={ChangePasswordView} />
                 <Stack.Screen name="Home" component={HomeView} />
                 <Stack.Screen name="Wishlist" component={WishtListView} />
+                <Stack.Screen name="chatbot" component={ChatbotView} />
                 <Stack.Screen
                     name="NotificationScreen"
-                    component={NotificationView}
+                    component={Notification}
                     options={{ headerTitle: 'Notifications' }}
                 />
-                <Stack.Screen name="chatbot" component={ChatbotView} />
             </Stack.Navigator>
-            
         </NavigationContainer>
     );
 }

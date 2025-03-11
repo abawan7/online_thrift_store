@@ -18,18 +18,15 @@ import Footer from './FooterView';
 import SideMenu from './SideMenu';
 import { Ionicons } from "@expo/vector-icons";
 
+
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.5;
 
-interface Message {
-    id: string;
-    text: string;
-}
-
-const ChatbotView: React.FC = () => {
+const ChatbotView = () => {
     const [message, setMessage] = useState('');
-    const [messages, setMessages] = useState<Message[]>([]);
-    const scrollViewRef = useRef<ScrollView>(null);
+    const [messages, setMessages] = useState([]);
+
+    const scrollViewRef = useRef();
 
     const sendMessage = () => {
         if (message.trim()) {
@@ -70,6 +67,7 @@ const ChatbotView: React.FC = () => {
                 onNotificationsPress={() => console.log('Notifications Pressed')}
             />
 
+           
             <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} menuWidth={menuWidth}/>
             {isMenuOpen && (
                 <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
@@ -96,6 +94,7 @@ const ChatbotView: React.FC = () => {
                             ))}
                         </ScrollView>
 
+                        {/* Chat Input Field */}
                         <View style={styles.inputContainer}>
                             <TouchableOpacity style={styles.iconWrapper}>
                                 <Ionicons name="attach-outline" size={24} color="white" />
@@ -128,6 +127,7 @@ const styles = StyleSheet.create({
     },
     chatArea: {
         flex: 1,
+        backgroundColor:'black'
     },
     inner: {
         flex: 1,
