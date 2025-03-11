@@ -11,13 +11,13 @@ import {
     TouchableWithoutFeedback,
     Keyboard,
     Animated,
-    Dimensions
+    Dimensions,
+    Image,
 } from 'react-native';
 import Header from './Header';
 import Footer from './FooterView';
 import SideMenu from './SideMenu';
 import { Ionicons } from "@expo/vector-icons";
-
 
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.5;
@@ -25,18 +25,25 @@ const menuWidth = screenWidth * 0.5;
 const ChatbotView = () => {
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
-
+    const [showBotIntro, setShowBotIntro] = useState(true);  // New state for showing intro
     const scrollViewRef = useRef();
 
-    const sendMessage = () => {
-        if (message.trim()) {
-            setMessages([...messages, { id: Date.now().toString(), text: message }]); 
-            setMessage('');
 
-            setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-        }
+
+    const sendMessage = () => {
+        if (message.trim() === "") return;
+        setMessages([...messages, { sender: "You", text: message }]);
+        const botResponse = "This is a hardcoded response from the bot.";
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { sender: "Bot", text: botResponse },
+        ]);
+
+        setShowBotIntro(false);
+        setMessage("");
+        setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
     };
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -67,7 +74,6 @@ const ChatbotView = () => {
                 onNotificationsPress={() => console.log('Notifications Pressed')}
             />
 
-           
             <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} menuWidth={menuWidth}/>
             {isMenuOpen && (
                 <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
@@ -87,11 +93,35 @@ const ChatbotView = () => {
                             keyboardShouldPersistTaps="handled"
                             keyboardDismissMode="on-drag"
                         >
-                            {messages.map((item) => (
-                                <View key={item.id} style={styles.messageBubble}>
-                                    <Text style={styles.messageText}>{item.text}</Text>
+                            {showBotIntro && (
+                                <View style={styles.botIntroContainer}>
+                                    <Image
+                                        source={require('../assets/bot.png')}
+                                        style={styles.botImage}
+                                    />
+                                    <Text style={styles.botIntroText}>
+                                        Hi there! I'm Thrifty, your personal shopping assistant from Re-quire. How can I assist you today?
+                                    </Text>
                                 </View>
-                            ))}
+                            )}
+
+{messages.map((msg, index) => (
+    <View key={index} style={msg.sender === "You" ? styles.messageWrapper : styles.botMessageWrapper}>
+        {msg.sender === "Bot" && (
+            <Image
+                source={require('../assets/bot.png')} // Adjust the path to your bot's image
+                style={styles.botpfp}
+            />
+        )}
+        <View style={msg.sender === "You" ? styles.messageBubble : styles.botBubble}>
+            <Text style={msg.sender === "You" ? styles.messageText : styles.botText}>
+                {msg.text}
+            </Text>
+        </View>
+    </View>
+))}
+
+
                         </ScrollView>
 
                         {/* Chat Input Field */}
@@ -127,7 +157,6 @@ const styles = StyleSheet.create({
     },
     chatArea: {
         flex: 1,
-        backgroundColor:'black'
     },
     inner: {
         flex: 1,
@@ -138,6 +167,51 @@ const styles = StyleSheet.create({
         paddingTop: 10,
         width: '100%',
     },
+    botIntroContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: '40%',
+        
+    },
+    botImage: {
+        width: 130,
+        height: 130,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 9 }, 
+        shadowOpacity: 0.4,
+        shadowRadius: 5,
+        
+    },
+    botpfp: {
+        width: 50,
+        padding:5,
+        height: 50,
+        
+    },
+    botIntroText: {
+        fontSize: 16,
+        color: '#1A434E',
+        textAlign: 'center',
+        paddingHorizontal: 20,
+        marginTop:10,
+        fontWeight: '600', 
+        letterSpacing: 0.9,
+        lineHeight: 22, 
+        fontFamily: 'Time New Roman',
+
+
+    },
+    messageWrapper: {
+        alignItems: 'flex-end', 
+        marginBottom: 10,
+    },
+
+    botMessageWrapper: {
+        flexDirection: 'row', 
+        alignItems: 'flex-start', 
+        marginBottom: 10,
+    },
+
     messageBubble: {
         backgroundColor: 'white',
         padding: 10,
@@ -145,12 +219,23 @@ const styles = StyleSheet.create({
         maxWidth: '70%',
         alignSelf: 'flex-end',
         marginBottom: 5,
-        marginTop:7,
+        marginTop: 7,
         marginRight: 10,
+    },
+    botBubble: {
+        backgroundColor: "rgba(183, 202, 174, 0.44)",
+        padding: 10,
+        borderRadius: 20,
+        maxWidth: "80%",
+        flexDirection: 'row', 
+        alignItems: 'center',
     },
     messageText: {
         color: 'black',
         fontSize: 16,
+    },
+    botText: {
+        color: "black",
     },
     inputContainer: {
         flexDirection: 'row',
