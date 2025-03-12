@@ -11,7 +11,7 @@ import Notification from './views/NotificationView'; // Import NotificationScree
 import ChatbotView from './views/ChatbotView';
 
 const Stack = createStackNavigator();
-require('dotenv').config();
+
 export default function AppNavigator() {
     return (
         <NavigationContainer>
