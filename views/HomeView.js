@@ -1,4 +1,4 @@
-import React, {useRef, useState} from 'react';
+import React, {useRef, useState,useEffect} from 'react';
 import Header from './Header';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
@@ -75,9 +75,38 @@ const products = [
     },
 ];
 
+
+
+
 const OnlineThriftStore = ({navigation}) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
+    const [data,setData]=useState("");
+
+useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('http://192.168.10.6:3000/data'); 
+        const result = await response.json();
+        //console.log("result : ",result);
+        //console.log('inside function');
+        setData(result);
+        //console.log(data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+  
+    fetchData();
+  }, []);
+
+
+  useEffect(() => {
+    if (data) {
+      console.log('Updated data: ', data);  // This will log after the state has been updated
+    }
+  }, [data]);
+
 
     const toggleMenu = () => {
         if (isMenuOpen) {
@@ -115,6 +144,9 @@ const OnlineThriftStore = ({navigation}) => {
             </View>
         </View>
     );
+
+
+
 
     return (
         <View style={styles.container}>
