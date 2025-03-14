@@ -3,9 +3,13 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Switch } f
 import Header from './Header';
 import Footer from './FooterView';
 import { Ionicons } from '@expo/vector-icons';  // For icons
+import Wishlistcontroller from '../controllers/WishlistController';  // Import the AuthController
+import AuthController from '../controllers/AuthController';  // Import the AuthController
+import { useNavigation } from '@react-navigation/native';  // Impor
 
 const ProfileView = () => {
-    const [isSeller, setIsSeller] = useState(false); 
+    const [isSeller, setIsSeller] = useState(false);
+    const navigation = useNavigation();  // Initialize navigation 
     
     const handleToggle = (value) => {
       setIsSeller(value);
@@ -46,29 +50,35 @@ const ProfileView = () => {
                 </View>
 
                 <View style={styles.menuItems}>
-                    <View style={styles.menuItem}>
+                    <TouchableOpacity style={styles.menuItem}>
                         <Ionicons name="heart-outline" size={24} color="black" />
                         <Text style={styles.menuItemText}>Favourites</Text>
-                    </View>
+                    </TouchableOpacity>
                     <View style={styles.separator}></View>
-                    <View style={styles.menuItem}>
+                    
+                    <TouchableOpacity style={styles.menuItem}  onPress={() => navigation.navigate('Wishlist')}>
                         <Ionicons name="bag-outline" size={24} color="black" />
                         <Text style={styles.menuItemText}>Wishlist Items</Text>
-                    </View>
-                    <View style={styles.menuItem}>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={styles.menuItem}>
                         <Ionicons name="notifications-outline" size={24} color="black" />
                         <Text style={styles.menuItemText}>Notification Setting</Text>
-                    </View>
-                    <View style={styles.menuItem}>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={styles.menuItem}>
                         <Ionicons name="settings-outline" size={24} color="black" />
                         <Text style={styles.menuItemText}>Settings</Text>
-                    </View>
+                    </TouchableOpacity>
+                    
                     <View style={styles.separator}></View>
-                    <View style={styles.menuItem}>
+                    
+                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Login')}>
                         <Ionicons name="log-out-outline" size={24} color="black" />
                         <Text style={styles.menuItemText}>Log Out</Text>
-                    </View>
+                    </TouchableOpacity>
                 </View>
+
             </ScrollView>
             <Footer />
         </View>
@@ -146,6 +156,9 @@ const styles = StyleSheet.create({
     },
     menuItems: {
         marginTop: 20,
+    },
+    menuItems: {
+      marginTop: 20,
     },
     menuItem: {
         flexDirection: 'row',
