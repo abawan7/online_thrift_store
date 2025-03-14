@@ -11,8 +11,8 @@ app.use(cors());
 // Sample route to fetch data from the database
 app.get('/data', async (req, res) => {
   try {
-    const result = await query('SELECT * FROM public."user"');  // Adjust this SQL query as needed
-    //console.log("server result",result.rows)
+    const result = await query('SELECT * FROM public."users"');  // Adjust this SQL query as needed
+    console.log("server result",result.rows)
     res.json(result.rows);
   } catch (err) {
     console.error(err);

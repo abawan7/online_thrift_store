@@ -1,11 +1,11 @@
 const { Pool } = require('pg');
-
+require('dotenv').config();
 const pool = new Pool({
-  user: 'postgres',        // replace with your database username
-  host: 'localhost',            // replace with your database host, usually localhost
-  database: 'Online_Thrift_Store',    // replace with your database name
-  password: 'ifra1234',    // replace with your database password
-  port: 5432,                   // default PostgreSQL port
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
 });
 pool.connect()
   .then(() => console.log('Database connected successfully'))
