@@ -133,13 +133,13 @@ useEffect(() => {
                     <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
                 </Text>
                 <View style={styles.productActions}>
-                <View style={styles.circleicon}>
+                    <View style={styles.circleicon}>
                     <Ionicons name="cart-outline" size={16} color="black" />
-                </View>
-                <View style={styles.circleicon}>
+                    </View>
+                    <View style={styles.circleicon}>
                     <Ionicons name="heart-outline" size={16} color="black" />
+                    </View>
                 </View>
-            </View>
                 <Text style={styles.productPrice}>{item.price}</Text>
             </View>
         </View>
@@ -164,47 +164,54 @@ useEffect(() => {
                 <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
             )}
             <ScrollView>
-                <FlatList
-                    horizontal
-                    data={categories}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity style={styles.category}>
-                            <Image source={item.image} style={styles.categoryImage} />
-                            <Text style={styles.categoryText}>{item.name}</Text>
-                        </TouchableOpacity>
-                    )}
-                    keyExtractor={(item) => item.id}
-                />
+            <ScrollView horizontal contentContainerStyle={styles.categoryList}>
+    {categories.map((item) => (
+        <TouchableOpacity style={styles.category} key={item.id}>
+            <Image source={item.image} style={styles.categoryImage} />
+            <Text style={styles.categoryText}>{item.name}</Text>
+        </TouchableOpacity>
+    ))}
+</ScrollView>
+
 
                 <Text style={styles.sectionTitle}>For You</Text>
-                <FlatList
+                <ScrollView 
                     horizontal
-                    data={products}
-                    renderItem={renderProduct}
-                    keyExtractor={(item) => item.id}
                     showsHorizontalScrollIndicator={false}
-                />
-                <Text style={styles.sectionTitle}>Recently Added</Text>
-                <FlatList
-                    data={products}
-                    renderItem={({ item }) => (
-                        <View style={styles.recentProductCard}>
-                            <Image source={{ uri: item.image }} style={styles.recentProductImage} />
-                            <Text style={styles.recentProductName}>{item.name}</Text>
-                            <Text style={styles.recentProductLocation}>
-                                <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
-                            </Text>
-                            <View style={styles.recentProductActions}>
-                                <Ionicons style={styles.circleicon} name="cart-outline" size={16} color="black" />
-                                <Ionicons style={[styles.circleicon, { marginLeft: 10 }]} name="heart-outline" size={16} color="black" />
-                            </View>
-                            <Text style={styles.recentProductPrice}>{item.price}</Text>
+                    contentContainerStyle={styles.productList}
+                >
+                    {products.map((item) => (
+                        <View  key={item.id}>
+                            {renderProduct({ item })}
                         </View>
-                    )}
-                    keyExtractor={(item) => item.id}
-                    numColumns={2}
-                    columnWrapperStyle={styles.recentProductRow}
-                />
+                    ))}
+                </ScrollView>
+                <Text style={styles.sectionTitle}>Recently Added</Text>
+                <ScrollView contentContainerStyle={styles.recentProductList}>
+    {/* Loop through products and render in two columns */}
+    {products.map((item, index) => (
+        <View
+            key={item.id}
+            style={[styles.recentProductCard, index % 2 === 1 && styles.secondColumn]} // To create two columns
+        >
+            <Image source={{ uri: item.image }} style={styles.recentProductImage} />
+            <Text style={styles.recentProductName}>{item.name}</Text>
+            <Text style={styles.recentProductLocation}>
+                <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
+            </Text>
+            <View style={styles.recentProductActions}>
+                <View style={styles.circleicon}>
+                    <Ionicons name="cart-outline" size={16} color="black" />
+                </View>
+                <View style={styles.circleicon}>
+                    <Ionicons name="heart-outline" size={16} color="black" />
+                </View>
+            </View>
+            <Text style={styles.recentProductPrice}>{item.price}</Text>
+        </View>
+    ))}
+</ScrollView>
+
 
             </ScrollView>
 
@@ -314,29 +321,31 @@ const styles = StyleSheet.create({
         borderTopColor: '#ccc',
         backgroundColor: '#ffffff',
     },
-    recentProductCard: {
-        flex: 1,
-        backgroundColor: 'rgba(183, 202, 174, 0.44)', // 44% transparency
-        margin: 8,
-        borderRadius: 12,
-        padding: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5,
-        alignItems: 'center',
+    recentProductList: {
+        flexDirection: 'row', 
+        flexWrap: 'wrap',    
+        justifyContent: 'space-between', 
+        paddingLeft: 15,    
+        paddingRight: 15, 
     },
-    recentProductRow: {
-        justifyContent: 'space-between',
+    recentProductCard: {
+        width: '48%',     
+        backgroundColor: 'rgba(183, 202, 174, 0.44)',
+        borderRadius: 12,
+        marginBottom: 15,   
+        padding: 10,
+        alignItems:'center',
+    },
+    secondColumn: {
+        marginLeft: '3%', 
     },
     recentProductImage: {
-        width: 170,
-        height: 170,
+        width: '100%',     // Ensure the image takes up full width of its container
+        height: 158,
         borderRadius: 8,
-        backgroundColor: 'White', // 44% transparency
+        backgroundColor: 'White',
         borderWidth: 2,
-        borderColor: '#B7CAAE', // 100% B7CAAE color
+        borderColor: '#B7CAAE',
         overflow: 'hidden',
     },
     recentProductName: {
@@ -361,7 +370,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         color: '#2c7a7b',
-        marginTop: 5,
+        marginTop:5,
     },
     overlay: {
         position: 'absolute',

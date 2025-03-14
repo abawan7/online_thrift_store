@@ -43,7 +43,7 @@ const ChatbotView = () => {
         setMessage("");
         setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        }, 1000);
     };
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
