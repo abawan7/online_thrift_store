@@ -9,6 +9,7 @@ import HomeView from "./views/HomeView"; // Import the new Proximity Check scree
 import WishtListView from "./views/WishlistItemView";
 import Notification from './views/NotificationView'; // Import NotificationScreen
 import ChatbotView from './views/ChatbotView';
+import ProfileView from './views/ProfileView'
 
 const Stack = createStackNavigator();
 
@@ -35,7 +36,9 @@ export default function AppNavigator() {
                     component={Notification}
                     options={{ headerTitle: 'Notifications' }}
                 />
+                <Stack.Screen name="Profile" component={ProfileView} />
             </Stack.Navigator>
+            
         </NavigationContainer>
     );
 }

@@ -91,7 +91,7 @@ useEffect(() => {
         //console.log("result : ",result);
         //console.log('inside function');
         setData(result);
-        console.log(data);
+        //console.log(data);
       } catch (error) {
         console.error(error);
       }
