@@ -10,6 +10,7 @@ import WishtListView from "./views/WishlistItemView";
 import Notification from './views/NotificationView'; // Import NotificationScreen
 import ChatbotView from './views/ChatbotView';
 import ProfileView from './views/ProfileView'
+import EditProfileView from './views/EditProfileView'
 
 const Stack = createStackNavigator();
 
@@ -37,6 +38,7 @@ export default function AppNavigator() {
                     options={{ headerTitle: 'Notifications' }}
                 />
                 <Stack.Screen name="Profile" component={ProfileView} />
+                <Stack.Screen name="editprofile" component={EditProfileView} />
             </Stack.Navigator>
             
         </NavigationContainer>

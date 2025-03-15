@@ -38,7 +38,7 @@ const ProfileView = () => {
                     </View>
 
                     <View style={styles.ButtonRow}>
-                        <TouchableOpacity style={styles.editProfileBtn}>
+                        <TouchableOpacity style={styles.editProfileBtn} onPress={() => navigation.navigate('editprofile')} >
                             <Text style={styles.editText}>Edit Profile</Text>
                         </TouchableOpacity>
 
