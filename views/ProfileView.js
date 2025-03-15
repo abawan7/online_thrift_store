@@ -10,7 +10,8 @@ const ProfileView = () => {
     const navigation = useNavigation();
     
     const handleToggle = () => {
-        setIsSeller(!isSeller); // Toggle between seller and buyer mode
+        setIsSeller(!isSeller);
+        console.log('isSeller:', !isSeller);
     };
 
     return (
@@ -94,7 +95,7 @@ const ProfileView = () => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-            <Footer />
+            <Footer isSeller={isSeller} />
         </View>
     );
 };

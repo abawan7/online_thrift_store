@@ -4,7 +4,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native'; // Import the useNavigation hook
 import {MaterialIcons } from "@expo/vector-icons";
 
-const Footer = () => {
+const Footer =  ({ isSeller }) => {
     const navigation = useNavigation(); // Get the navigation object
 
     return (
@@ -14,9 +14,9 @@ const Footer = () => {
                 <Text style={styles.footerText}>Home</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Wishlist')}>
-                <Ionicons name="bag-outline" size={25} color="#1A434E" />
-                <Text style={styles.footerText}>WishList</Text>
+            <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate(isSeller ? 'UploadItem' : 'Wishlist')}>
+                <Ionicons name={isSeller ? "cloud-upload-outline" : "bag-outline"} size={25} color="#1A434E" />
+                <Text style={styles.footerText}>{isSeller ? 'Upload Item' : 'WishList'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('chatbot')}>
