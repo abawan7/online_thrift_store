@@ -30,7 +30,7 @@ const EditProfileScreen = () => {
             <Header title="Online Thrift Store" />
 
             <View style={styles.titleContainer}>
-                <Ionicons name="pencil-outline" size={75} color="#FFF" />
+                <Ionicons name="pencil-outline" size={55} color="#FFF" />
                 <Text style={styles.EditTitle}>Edit Profile</Text>
                 <View style={styles.underline} />
             </View>
@@ -148,6 +148,12 @@ const EditProfileScreen = () => {
                         </View>
                     </Modal>
 
+                    <TouchableOpacity style={styles.changePasswordBtn}>
+                        <Text style={styles.changePasswordText}>Change Password</Text>
+                        <Ionicons name="lock-closed" size={16} color="black" />
+                    </TouchableOpacity>
+
+
                     {/* Save Button */}
                     <TouchableOpacity style={styles.saveBtn}>
                         <Text style={styles.saveText}>SAVE</Text>
@@ -160,7 +166,7 @@ const EditProfileScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff", backgroundColor: '#1A434E',},
-    scrollView: { alignItems: "center", marginTop: 45, backgroundColor: '#fff', borderRadius: 40, },
+    scrollView: { alignItems: "center", marginTop: 40, backgroundColor: '#fff', borderRadius: 40, },
     profilePicContainer: { marginTop: -40, alignItems: "center", justifyContent: "center" },
     profilePic: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: "white" },
     cameraIcon: { position: "absolute", bottom: 5, right: 5, backgroundColor: "white", borderRadius: 20, padding: 4 },
@@ -245,9 +251,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
       },
     EditTitle: {
-        fontSize: 30,
+        fontSize: 20,
         fontWeight: 'bold',
-        color: '#1A434E',
+        color: '#FFF',
     },
     dropdownContainer: {
         flexDirection: "row",
@@ -274,6 +280,13 @@ const styles = StyleSheet.create({
         color: "#333",
         fontWeight: "500",
     },
+    underline: {
+        width: 90,
+        height: 2,
+        backgroundColor: '#FFF',
+        marginTop: 4,
+        marginBottom: 10
+      },
     
     
 });
