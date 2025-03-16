@@ -11,6 +11,7 @@ import Notification from './views/NotificationView'; // Import NotificationScree
 import ChatbotView from './views/ChatbotView';
 import ProfileView from './views/ProfileView'
 import EditProfileView from './views/EditProfileView'
+import UploadItemView from './views/UploadItem';
 
 const Stack = createStackNavigator();
 
@@ -39,6 +40,7 @@ export default function AppNavigator() {
                 />
                 <Stack.Screen name="Profile" component={ProfileView} />
                 <Stack.Screen name="editprofile" component={EditProfileView} />
+                <Stack.Screen name="UploadItem" component={UploadItemView} />
             </Stack.Navigator>
             
         </NavigationContainer>
