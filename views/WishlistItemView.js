@@ -5,6 +5,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
 import useLocation from '../hooks/userLocation'; // Import useLocation hook
+import axios from "axios";
+
 
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.7;
@@ -83,14 +85,55 @@ const WishlistView = ({ navigation }) => {
       }).start();
     }
   };
-
+  const [keywords, setKeywords] = useState({});
   const wishlistItems = [
+    "I want a coffee table",
     "iPhone 16",
-    "Macbook 2021",
-    "Smart Fitness Watch",
+    "A Macbook 2021",
+    "One Smart Fitness Watch",
     "Handmade Ceramic Vase",
-    "Electric Mountain Bike",
+    "An Electric Mountain Bike",
   ];
+
+  useEffect(() => {
+    const fetchKeywords = async () => {
+      try {
+        const API_URL = "http://192.168.10.7:3000/extract-keywords"; // Use for Android Emulator
+        // Use "http://192.168.1.10:3000/extract-keywords" for a real device
+
+        console.log("Sending request to:", API_URL);
+
+        const response = await axios.post(API_URL, { wishlistItems });
+
+        console.log("Response received:", response.data);
+        setKeywords(response.data.keywords);
+      } catch (error) {
+        console.error("Error fetching keywords:", error);
+        if (error.response) {
+          console.error("Response Error:", error.response.data);
+        } else if (error.request) {
+          console.error("Request Error: No response received", error.request);
+        } else {
+          console.error("General Error:", error.message);
+        }
+      }
+    };
+
+    fetchKeywords();
+  }, []);
+  
+  const renderWishlistItem2 = ({ item }) => (
+    <View style={styles.itemContainer}>
+      <Text style={styles.itemText}>{item}</Text>
+      <Text style={styles.keywordText}>
+        Keywords: {keywords[item] ? keywords[item].join(", ") : "Extracting..."}
+      </Text>
+    </View>
+  );
+
+
+
+
 
   const sellers = [
     {
@@ -240,7 +283,7 @@ const WishlistView = ({ navigation }) => {
           />
         </View>
       </View>
-
+      
       <View>
         {showLocation && (
           <View style={styles.locationContainer}>
@@ -288,8 +331,6 @@ const WishlistView = ({ navigation }) => {
           {isLoading ? "Matching..." : "Check Proximity"}
         </Text>
       </TouchableOpacity>
-
-      {/* Footer */}
       <Footer />
     </View>
   );

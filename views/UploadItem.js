@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import { View, Text,TextInput, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import Header from './Header';
 import Footer from './FooterView';
-import { Ionicons } from '@expo/vector-icons';  
-import { Picker } from '@react-native-picker/picker';
-import { useNavigation } from '@react-navigation/native';  
-import DropDownPicker from 'react-native-dropdown-picker';
+import { Ionicons } from '@expo/vector-icons'; 
 
 const UploadItemView = () => {
     const [title, setTitle] = useState('');
@@ -25,7 +22,6 @@ const UploadItemView = () => {
         }
       };
     
-      // Handle Description Input
       const handleDescriptionChange = (input) => {
         if (input.length <= 200) { 
           setDescription(input);
@@ -173,7 +169,7 @@ const styles = StyleSheet.create({
     },
     textArea: {
       height: 100,
-      textAlignVertical: 'top', // To make the text start from the top in the textarea
+      textAlignVertical: 'top', 
     },
     charCountContainer: {
         flexDirection: 'row',
