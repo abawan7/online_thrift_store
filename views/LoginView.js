@@ -1,27 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import AuthController from '../controllers/AuthController';  // Import the AuthController
+import axios from 'axios';  // Import axios for HTTP requests
+import AsyncStorage from '@react-native-async-storage/async-storage';  // For storing JWT token
+import AuthController from '../controllers/AuthController';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
 
+// Set up Axios base URL for the API
+axios.defaults.baseURL = 'http://localhost:3000';  // Make sure to replace with the correct URL if needed
+
 export default function LoginView({ navigation }) {
+  // States to hold input data
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post('/login', {
+        email: emailOrUsername,
+        password,
+      });
+
+      // If login is successful, store the token
+      await AsyncStorage.setItem('token', response.data.token);  // Store JWT token securely
+
+      // Navigate to the Home screen after successful login
+      navigation.navigate('Home');
+    } catch (err) {
+      // Handle error response (displaying message if available)
+      setError(err.response?.data?.message || 'Invalid credentials');
+    }
+  };
+
   return (
     <ImageBackground source={require('../assets/Login_page_background.png')} style={styles.container} imageStyle={styles.backgroundImage}>
       <View style={styles.loginBox}>
         <Text style={styles.title}>Login</Text>
-        
+
+        {/* Error Message */}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
         <View style={styles.inputContainer}>
           <FontAwesome name="user" size={20} color="#888" style={styles.icon} />
           <TextInput
             style={styles.input}
             placeholder="Email or username"
             placeholderTextColor="#888"
+            value={emailOrUsername}
+            onChangeText={setEmailOrUsername}
           />
         </View>
-        
+
         <View style={styles.inputContainer}>
           <FontAwesome name="key" size={20} color="#888" style={styles.icon} />
           <TextInput
@@ -29,19 +62,23 @@ export default function LoginView({ navigation }) {
             placeholder="Password"
             secureTextEntry={true}
             placeholderTextColor="#888"
+            value={password}
+            onChangeText={setPassword}
           />
         </View>
-        
+
         <TouchableOpacity onPress={() => AuthController.handleForgetPassword(navigation)}>
           <Text style={styles.forgotPassword}>Forget Password?</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.loginButton} onPress={() => AuthController.handleLogin(navigation)}>
+
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>Login</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity onPress={() => AuthController.handleSignup(navigation)}>
-          <Text style={styles.signupText}>Don't have an account? <Text style={styles.signupLink}>Sign Up</Text></Text>
+          <Text style={styles.signupText}>
+            Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
+          </Text>
         </TouchableOpacity>
 
       </View>
@@ -126,5 +163,10 @@ const styles = StyleSheet.create({
   signupLink: {
     color: '#007BFF',
     fontWeight: 'bold',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 10,
+    fontSize: 14,
   },
 });
