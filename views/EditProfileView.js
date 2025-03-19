@@ -1,28 +1,46 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView, Modal, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Header from './Header';
+import PhoneInput from 'react-native-phone-number-input';  // Import the phone number input library
+import AsyncStorage from '@react-native-async-storage/async-storage';  // For accessing the saved token
 
 const EditProfileScreen = () => {
     const navigation = useNavigation();
 
     // State for form inputs
-    const [firstName, setFirstName] = useState("Ifra");
-    const [lastName, setLastName] = useState("Ejaz");
-    const [username, setUsername] = useState("ifraejaz07");
-    const [email, setEmail] = useState("ifraejaz07@gmail.com");
-    const [phoneNumber, setPhoneNumber] = useState("123 456789");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [phoneCode, setPhoneCode] = useState('PK');  // Store the country code (default is 'PK' for Pakistan)
 
-    // Dropdown states
-    const [birth, setBirth] = useState("Birth");
-    const [gender, setGender] = useState("Gender");
-    const [isBirthModalVisible, setBirthModalVisible] = useState(false);
-    const [isGenderModalVisible, setGenderModalVisible] = useState(false);
+    // Fetch user session data from AsyncStorage
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                // Retrieve user session from AsyncStorage
+                const userData = await AsyncStorage.getItem('userData');
+                if (userData) {
+                    const parsedData = JSON.parse(userData);
 
-    // Country Code State
-    const [selectedCountry, setSelectedCountry] = useState({ name: "Pakistan", code: "+92" });
-    const [isCountryModalVisible, setCountryModalVisible] = useState(false);
+                    // Set state values with user data
+                    setFirstName(parsedData.firstName);
+                    setLastName(parsedData.lastName);
+                    setUsername(parsedData.username);
+                    setEmail(parsedData.email);
+                    setPhoneNumber(parsedData.phone);
+                    setPhoneCode(parsedData.phoneCode);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        };
+
+        fetchUserData();
+    }, []);
 
     return (
         <View style={styles.container}>
@@ -63,96 +81,24 @@ const EditProfileScreen = () => {
 
                     <Text style={styles.label}>Phone Number</Text>
                     <View style={styles.phoneInputContainer}>
-                        <TouchableOpacity style={styles.countryCodeButton} onPress={() => setCountryModalVisible(true)}>
-                            <Text style={styles.phoneCode}>{selectedCountry.code}</Text>
-                            <Ionicons name="chevron-down" size={16} color="black" />
-                        </TouchableOpacity>
-                        <TextInput 
-                            style={styles.phoneInput} 
-                            value={phoneNumber} 
-                            onChangeText={setPhoneNumber} 
-                            keyboardType="phone-pad" 
+                        <PhoneInput
+                            defaultValue={phoneNumber}
+                            defaultCode={phoneCode}  // Set the default country code
+                            onChangeFormattedText={text => {
+                                setPhoneNumber(text);  // Set the phone number with country code
+                            }}
+                            containerStyle={styles.phoneInput}  // Style the container for the phone input
+                            textContainerStyle={styles.phoneTextContainer}
+                            onChangeCountry={(country) => {
+                                setPhoneCode(country.cca2);  // Update the country code when the user selects a new country
+                            }}
                         />
                     </View>
-
-                    {/* Dropdowns for Birth and Gender */}
-                    <View style={styles.dropdownContainer}>
-                        <TouchableOpacity style={styles.dropdownButton} onPress={() => setBirthModalVisible(true)}>
-                            <Text style={styles.dropdownText}>{birth}</Text>
-                            <Ionicons name="chevron-down" size={18} color="black" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.dropdownButton} onPress={() => setGenderModalVisible(true)}>
-                            <Text style={styles.dropdownText}>{gender}</Text>
-                            <Ionicons name="chevron-down" size={18} color="black" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Modals */}
-                    <Modal visible={isCountryModalVisible} transparent animationType="slide">
-                        <View style={styles.modalOverlay}>
-                            <View style={styles.modalContent}>
-                                <FlatList 
-                                    data={[
-                                        { name: "Pakistan", code: "+92" },
-                                        { name: "United States", code: "+1" },
-                                        { name: "United Kingdom", code: "+44" },
-                                        { name: "India", code: "+91" },
-                                        { name: "Germany", code: "+49" },
-                                        { name: "Australia", code: "+61" }
-                                    ]}
-                                    keyExtractor={(item) => item.code}
-                                    renderItem={({ item }) => (
-                                        <TouchableOpacity 
-                                            style={styles.modalItem} 
-                                            onPress={() => { setSelectedCountry(item); setCountryModalVisible(false); }}
-                                        >
-                                            <Text style={styles.modalText}>{`${item.name} (${item.code})`}</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                />
-                                <TouchableOpacity onPress={() => setCountryModalVisible(false)} style={styles.modalClose}>
-                                    <Text style={styles.modalCloseText}>Cancel</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </Modal>
-
-                    <Modal visible={isBirthModalVisible} transparent animationType="slide">
-                        <View style={styles.modalOverlay}>
-                            <View style={styles.modalContent}>
-                                {["January", "February", "March", "April"].map((item) => (
-                                    <TouchableOpacity key={item} style={styles.modalItem} onPress={() => { setBirth(item); setBirthModalVisible(false); }}>
-                                        <Text style={styles.modalText}>{item}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                                <TouchableOpacity onPress={() => setBirthModalVisible(false)} style={styles.modalClose}>
-                                    <Text style={styles.modalCloseText}>Cancel</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </Modal>
-
-                    <Modal visible={isGenderModalVisible} transparent animationType="slide">
-                        <View style={styles.modalOverlay}>
-                            <View style={styles.modalContent}>
-                                {["Male", "Female", "Other"].map((item) => (
-                                    <TouchableOpacity key={item} style={styles.modalItem} onPress={() => { setGender(item); setGenderModalVisible(false); }}>
-                                        <Text style={styles.modalText}>{item}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                                <TouchableOpacity onPress={() => setGenderModalVisible(false)} style={styles.modalClose}>
-                                    <Text style={styles.modalCloseText}>Cancel</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </Modal>
 
                     <TouchableOpacity style={styles.changePasswordBtn}>
                         <Text style={styles.changePasswordText}>Change Password</Text>
                         <Ionicons name="lock-closed" size={16} color="black" />
                     </TouchableOpacity>
-
 
                     {/* Save Button */}
                     <TouchableOpacity style={styles.saveBtn}>
@@ -163,6 +109,7 @@ const EditProfileScreen = () => {
         </View>
     );
 };
+
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff", backgroundColor: '#1A434E',},
@@ -180,66 +127,30 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#000",
         borderRadius: 8,
-        padding: 12,
-        marginTop: 10,
+        padding:2,
         backgroundColor: "#FFF",
     },
-    phoneCode: {
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "Black",
-        marginRight: 10,
-    },
     phoneInput: {
-        flex: 1,
-        fontSize: 16,
-        color: "#000",
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 50,
+        backgroundColor: '#fff',
     },
-    countryCodeButton: {
+    phoneTextContainer: {
+        flex: 1,
+        fontSize: 18,
+        backgroundColor: '#fff',
+    },
+    changePasswordBtn: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: "#000",
-        backgroundColor: "#fff",
-        marginRight: 10,
-    },
-    modalOverlay: {
-        flex: 1,
         justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.5)",
-    },
-    modalContent: {
-        backgroundColor: "white",
-        padding: 20,
-        marginHorizontal: 40,
+        backgroundColor: "#D3D3D3", // Light gray background
         borderRadius: 8,
-    },
-    modalItem: {
-        paddingVertical: 10,
-    },
-    modalClose: {
-        marginTop: 10,
-        alignItems: "center",
-    },
-    modalCloseText: {
-        fontSize: 16,
-        color: "red",
-    },
-    saveBtn: { backgroundColor: "#1A434E", borderRadius: 8, paddingVertical: 12, marginTop: 15, alignItems: "center", marginBottom: 100, },
-    saveText: { color: "white", fontSize: 16, fontWeight: "bold" },
-    changePasswordBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#D3D3D3", // Light gray background
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginTop: 15,
-    width: "100%", // Full width
-    opacity: 0.8, // Slight transparency effect
+        paddingVertical: 12,
+        marginTop: 15,
+        width: "100%", // Full width
+        opacity: 0.8, // Slight transparency effect
     },
     changePasswordText: {
         fontSize: 14,
@@ -247,38 +158,15 @@ const styles = StyleSheet.create({
         color: "#333", // Dark text for visibility
         marginRight: 8, // Spacing between text and icon
     },
+    saveBtn: { backgroundColor: "#1A434E", borderRadius: 8, paddingVertical: 12, marginTop: 15, alignItems: "center", marginBottom: 100, },
+    saveText: { color: "white", fontSize: 16, fontWeight: "bold" },
     titleContainer: {
         alignItems: 'center',
-      },
+    },
     EditTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#FFF',
-    },
-    dropdownContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginTop: 10,
-    },
-    
-    dropdownButton: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        borderWidth: 1,
-        borderColor: "#000",
-        borderRadius: 8,
-        backgroundColor: "#FFF",
-        marginHorizontal: 5,
-    },
-    
-    dropdownText: {
-        fontSize: 16,
-        color: "#333",
-        fontWeight: "500",
     },
     underline: {
         width: 90,
@@ -286,9 +174,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         marginTop: 4,
         marginBottom: 10
-      },
-    
-    
+    },
 });
 
 export default EditProfileScreen;
