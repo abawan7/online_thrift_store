@@ -1,18 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';  
+import axios from 'axios';  // Import axios for HTTP requests
+import AsyncStorage from '@react-native-async-storage/async-storage';  // For storing JWT token
 import Header from './Header';
 import Footer from './FooterView';
-import { Ionicons } from '@expo/vector-icons';  
-import { useNavigation } from '@react-navigation/native';  
 
-const ProfileView = () => {
-    const [isSeller, setIsSeller] = useState(false);  
-    const navigation = useNavigation();
-    
+const ProfileView = ({ navigation }) => {
+    const [isSeller, setIsSeller] = useState(false);
+    const [userData, setUserData] = useState(null);  // State to hold the user data
+    const [loading, setLoading] = useState(true);  // Loading state while fetching data
+
     const handleToggle = () => {
         setIsSeller(!isSeller);
-        console.log('isSeller:', !isSeller);
     };
+
+    useEffect(() => {
+        // Function to fetch user data from API
+        const fetchUserData = async () => {
+            try {
+                // Get the token from AsyncStorage
+                const token = await AsyncStorage.getItem('token');
+
+                if (token) {
+                    // Make API call to fetch user profile data
+                    const response = await axios.get('http://localhost:3000/getUserProfile', {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+
+                    // Set user data after the response
+                    setUserData(response.data.user);
+                    setLoading(false);  // Set loading to false after data is fetched
+                }
+            } catch (err) {
+                console.error('Error fetching user data:', err);
+                setLoading(false);  // Set loading to false even if there's an error
+            }
+        };
+
+        fetchUserData();
+    }, []);
+
+    if (loading) {
+        return <Text>Loading...</Text>;  // Show loading text while fetching data
+    }
 
     return (
         <View style={styles.container}>
@@ -33,13 +64,13 @@ const ProfileView = () => {
 
                         {/* Name and Email Section */}
                         <View style={styles.profileDetails}>
-                            <Text style={styles.userName}>Ifra Ejaz</Text>
-                            <Text style={styles.email}>ifraeajz07@gmail.com</Text>
+                            <Text style={styles.userName}>{userData.name}</Text>
+                            <Text style={styles.email}>{userData.email}</Text>
                         </View>
                     </View>
 
                     <View style={styles.ButtonRow}>
-                        <TouchableOpacity style={styles.editProfileBtn} onPress={() => navigation.navigate('editprofile')} >
+                        <TouchableOpacity style={styles.editProfileBtn} onPress={() => navigation.navigate('editprofile')}>
                             <Text style={styles.editText}>Edit Profile</Text>
                         </TouchableOpacity>
 
@@ -55,6 +86,7 @@ const ProfileView = () => {
                     </View>
                 </View>
 
+                {/* The rest of the menu items... */}
                 <View style={styles.menuItems}>
                     <TouchableOpacity style={styles.menuItem}>
                         <Ionicons name="heart-outline" size={24} color="black" />

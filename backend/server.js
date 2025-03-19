@@ -102,21 +102,57 @@ app.post('/login', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { user_id: user.user_id, email: user.email, access_level: user.access_level }, 
+      { user_id: user.user_id, email: user.email, phone: user.phone, access_level: user.access_level }, 
       secretKey, 
-      { expiresIn: '1h' }  // Token expires in 1 hour, adjust as needed
+      { expiresIn: '1h' }
     );
 
-    // Send the JWT token in the response
+    // Send the JWT token and user info
     res.json({
       message: 'Login successful',
       token,  // Include the token in the response
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        phone: user.phone,
+        access_level: user.access_level
+      }
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+// Get User Profile Route
+app.get('/getUserProfile', async (req, res) => {
+  try {
+    // Extract token from the Authorization header
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ message: 'Authorization token is required' });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Get user profile from the database using the decoded user_id
+    const result = await query('SELECT user_id, name, email, phone, access_level FROM public.users WHERE user_id = $1', [decoded.user_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Send user profile data
+    res.json({ user: result.rows[0] });
+
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 
 // Dummy route for extracting keywords (just for demonstration)
 app.post("/extract-keywords", (req, res) => {

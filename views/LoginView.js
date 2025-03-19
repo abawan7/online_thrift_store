@@ -2,18 +2,17 @@ import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import axios from 'axios';  // Import axios for HTTP requests
-import AsyncStorage from '@react-native-async-storage/async-storage';  // For storing JWT token
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing JWT token
 import AuthController from '../controllers/AuthController';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
 
 // Set up Axios base URL for the API
-axios.defaults.baseURL = 'http://localhost:3000';  // Make sure to replace with the correct URL if needed
+axios.defaults.baseURL = 'http://localhost:3000'; // Replace with the correct URL if needed
 
 export default function LoginView({ navigation }) {
-  // States to hold input data
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,13 +24,16 @@ export default function LoginView({ navigation }) {
         password,
       });
 
-      // If login is successful, store the token
+      // Store JWT token and user data
       await AsyncStorage.setItem('token', response.data.token);  // Store JWT token securely
+      await AsyncStorage.setItem('user_id', response.data.user.user_id.toString());  // Store user ID
+      await AsyncStorage.setItem('email', response.data.user.email);  // Store email
+      await AsyncStorage.setItem('phone', response.data.user.phone);  // Store phone
+      await AsyncStorage.setItem('access_level', response.data.user.access_level.toString());  // Store access level
 
       // Navigate to the Home screen after successful login
       navigation.navigate('Home');
     } catch (err) {
-      // Handle error response (displaying message if available)
       setError(err.response?.data?.message || 'Invalid credentials');
     }
   };
