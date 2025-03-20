@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing JWT token
-import AuthController from '../controllers/AuthController';
+import useLocation from '../hooks/userLocation'; // Import useLocation hook
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
@@ -16,6 +16,7 @@ export default function LoginView({ navigation }) {
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const { geocodeAddress } = useLocation(); // Use the location hook
 
   const handleLogin = async () => {
     try {
@@ -23,20 +24,52 @@ export default function LoginView({ navigation }) {
         email: emailOrUsername,
         password,
       });
+  
+      // Check if the login was successful
+      console.log('Login success:', response.data);
+  
+      const { location } = response.data.user;
+      let latitude = null;
+    let longitude = null;
 
-      // Store JWT token and user data
-      await AsyncStorage.setItem('token', response.data.token);  // Store JWT token securely
-      await AsyncStorage.setItem('user_id', response.data.user.user_id.toString());  // Store user ID
-      await AsyncStorage.setItem('email', response.data.user.email);  // Store email
-      await AsyncStorage.setItem('phone', response.data.user.phone);  // Store phone
-      await AsyncStorage.setItem('access_level', response.data.user.access_level.toString());  // Store access level
+    // If location exists, fetch latitude and longitude using geocoding API
+    if (location && location !== 'Unknown location') {
+      const geocodedLocation = await geocodeAddress(location); // Get latitude and longitude
+      if (geocodedLocation) {
+        latitude = geocodedLocation.lat;
+        longitude = geocodedLocation.lon;
+      } else {
+        console.log('Failed to geocode location');
+        latitude = '0';  // Default value when geocoding fails
+        longitude = '0'; // Default value when geocoding fails
+      }
+    } else {
+      latitude = '0';  // Default value when location is null
+      longitude = '0'; // Default value when location is null
+    }
+  
+      // Store the JWT token, user data, and location (latitude, longitude)
+      await AsyncStorage.setItem('token', response.data.token);
+      await AsyncStorage.setItem('user_id', response.data.user.user_id.toString());
+      await AsyncStorage.setItem('email', response.data.user.email);
+      await AsyncStorage.setItem('phone', response.data.user.phone);
+      await AsyncStorage.setItem('access_level', response.data.user.access_level.toString());
+      await AsyncStorage.setItem('location', location || null);
+      await AsyncStorage.setItem('latitude', latitude.toString());
+      await AsyncStorage.setItem('longitude', longitude.toString());
+      await AsyncStorage.setItem('role', 'buyer');
 
+  
+      console.log('All data stored in AsyncStorage');
+  
       // Navigate to the Home screen after successful login
       navigation.navigate('Home');
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Invalid credentials');
     }
   };
+  
 
   return (
     <ImageBackground source={require('../assets/Login_page_background.png')} style={styles.container} imageStyle={styles.backgroundImage}>

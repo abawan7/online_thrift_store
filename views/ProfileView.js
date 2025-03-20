@@ -11,8 +11,19 @@ const ProfileView = ({ navigation }) => {
     const [userData, setUserData] = useState(null);  // State to hold the user data
     const [loading, setLoading] = useState(true);  // Loading state while fetching data
 
-    const handleToggle = () => {
-        setIsSeller(!isSeller);
+    const handleToggle = async () => {
+        // Check the location from AsyncStorage
+        const location = await AsyncStorage.getItem('location');
+
+        if (location === 'Unknown location') {
+            // If the location is "Unknown location", navigate to the "AddLocation" screen
+            navigation.navigate('AddLocation');
+        } else {
+            setIsSeller(!isSeller);
+            const newRole = !isSeller ? 'seller' : 'buyer';
+            await AsyncStorage.setItem('role', newRole);  // Set role to 'seller' or 'buyer'
+            console.log('Role updated to:', newRole);
+        }
     };
 
     useEffect(() => {
