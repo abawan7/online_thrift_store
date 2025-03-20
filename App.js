@@ -4,14 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import LoginView from './views/LoginView';
 import SignupView from './views/SignupView';
 import ForgetPasswordView from './views/ForgetPasswordView';
-import ChangePasswordView from "./views/ChangePasswordView"; // Import the new Proximity Check screen
-import HomeView from "./views/HomeView"; // Import the new Proximity Check screen
+import ChangePasswordView from "./views/ChangePasswordView";
+import HomeView from "./views/HomeView";
 import WishtListView from "./views/WishlistItemView";
-import Notification from './views/NotificationView'; // Import NotificationScreen
+import Notification from './views/NotificationView';
 import ChatbotView from './views/ChatbotView';
-import ProfileView from './views/ProfileView'
-import EditProfileView from './views/EditProfileView'
+import ProfileView from './views/ProfileView';
+import EditProfileView from './views/EditProfileView';
 import UploadItemView from './views/UploadItem';
+import AddLocation from './views/AddLocationView';  // Correct import path for AddLocationView.js
 
 const Stack = createStackNavigator();
 
@@ -41,8 +42,8 @@ export default function AppNavigator() {
                 <Stack.Screen name="Profile" component={ProfileView} />
                 <Stack.Screen name="editprofile" component={EditProfileView} />
                 <Stack.Screen name="UploadItem" component={UploadItemView} />
+                <Stack.Screen name="AddLocation" component={AddLocation} />
             </Stack.Navigator>
-            
         </NavigationContainer>
     );
 }

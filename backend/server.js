@@ -90,24 +90,43 @@ app.get('/verify/:token', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
+  console.log('Request body:', req.body);
+
   try {
     // Check if the user exists
     const result = await query('SELECT * FROM public.users WHERE email = $1', [email]);
     const user = result.rows[0];
 
-    // If no user found or password doesn't match
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+    // If no user found, return an error indicating the email does not exist
+    if (!user) {
+      return res.status(400).json({ message: 'Email does not exist' });
     }
 
-    // Generate JWT token
+    console.log('User from database:', user);
+    // Compare the password with the hashed password in the database
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      // If the password is invalid, return an error indicating the password is incorrect
+      return res.status(400).json({ message: 'Incorrect password' });
+    }
+
+    console.log('Password match result:', isPasswordValid);
+
+    console.log('User location:', user.location); // Log location field
+
+    // Generate JWT token if email and password are correct
     const token = jwt.sign(
-      { user_id: user.user_id, email: user.email, phone: user.phone, access_level: user.access_level }, 
-      secretKey, 
+      { user_id: user.user_id, email: user.email, phone: user.phone, access_level: user.access_level },
+      secretKey,
       { expiresIn: '1h' }
     );
 
-    // Send the JWT token and user info
+    // Get the user's location from the database
+    const location = user.location || "Unknown location"; // Set default value if location is null
+    console.log('Location to be sent:', location); // Log the location that will be sent
+    
+    // Send the JWT token, user info, and location data
     res.json({
       message: 'Login successful',
       token,  // Include the token in the response
@@ -115,7 +134,8 @@ app.post('/login', async (req, res) => {
         user_id: user.user_id,
         email: user.email,
         phone: user.phone,
-        access_level: user.access_level
+        access_level: user.access_level,
+        location: location  // Include location field (could be null)
       }
     });
   } catch (err) {
@@ -123,6 +143,8 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
 
 // Get User Profile Route
 app.get('/getUserProfile', async (req, res) => {
@@ -187,7 +209,48 @@ app.post("/extract-keywords", (req, res) => {
   });
 });
 
+app.put('/updateLocation/:userId', async (req, res) => {
+  const { location } = req.body;  // Get the new location from the request body
+  const { userId } = req.params;  // Get the userId from the URL parameter
+
+  try {
+    // Check if location is provided
+    if (!location) {
+      return res.status(400).json({ message: 'Location is required' });
+    }
+
+    console.log('123');
+
+    // Update the user's location and access level in the database
+    const updateQuery = `
+      UPDATE public.users 
+      SET location = $1, access_level = 2 
+      WHERE user_id = $2 
+      RETURNING *
+    `;
+    const updateParams = [location, userId];
+
+    const result = await query(updateQuery, updateParams);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Return updated user data (excluding password)
+    res.json({
+      message: 'Location and access level updated successfully',
+      user: result.rows[0],
+    });
+
+  } catch (err) {
+    console.error('Error updating location and access level:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 // Listen on the specified port
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+
