@@ -144,8 +144,6 @@ app.post('/login', async (req, res) => {
   }
 });
 
-
-
 // Get User Profile Route
 app.get('/getUserProfile', async (req, res) => {
   try {
@@ -250,7 +248,7 @@ app.put('/updateLocation/:userId', async (req, res) => {
 app.post('/listing', async (req, res) => {
   const { user_id, name, description, price, location, tags, images } = req.body;
 
-  console.log(req);
+  console.log('123');
   try {
     // Check if user exists (optional check)
     const userCheckQuery = 'SELECT * FROM public.users WHERE user_id = $1';
