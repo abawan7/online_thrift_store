@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import Constants from 'expo-constants';
 import {
     View,
     StyleSheet,
@@ -18,8 +19,9 @@ import Header from './Header';
 import Footer from './FooterView';
 import SideMenu from './SideMenu';
 import { Ionicons } from "@expo/vector-icons";
-
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 const screenWidth = Dimensions.get('window').width;
+import axios from 'axios';
 const menuWidth = screenWidth * 0.5;
 
 const ChatbotView = () => {
@@ -30,17 +32,20 @@ const ChatbotView = () => {
 
 
 
-    const sendMessage = () => {
+    const sendMessage = async() => {
         if (message.trim() === "") return;
         setMessages([...messages, { sender: "You", text: message }]);
-        const botResponse = "This is a hardcoded response from the bot.";
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { sender: "Bot", text: botResponse },
-        ]);
+        try {
+              const response = await axios.get(`${Constants.expoConfig.extra.API_URL}/chat?user_id=${AsyncStorage.getItem('user_id')}&user_input=${message}`);
+        
+              const botResponse = response.data.response;
+              setMessages((prevMessages) => [...prevMessages, { sender: "Bot", text: botResponse }]);
+              setMessage("");
+            } catch (error) {
+              console.error("Error:", error);
+            }
 
         setShowBotIntro(false);
-        setMessage("");
         setTimeout(() => {
             scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 1000);

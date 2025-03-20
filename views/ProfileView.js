@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';  
 import axios from 'axios';  // Import axios for HTTP requests
-import AsyncStorage from '@react-native-async-storage/async-storage';  // For storing JWT token
+// For storing JWT token
 import Header from './Header';
+import Constants from 'expo-constants';
 import Footer from './FooterView';
+import AsyncStorage from '@react-native-async-storage/async-storage';  // Import AsyncStorage
 
 const ProfileView = ({ navigation }) => {
     const [isSeller, setIsSeller] = useState(false);
@@ -35,7 +37,7 @@ const ProfileView = ({ navigation }) => {
 
                 if (token) {
                     // Make API call to fetch user profile data
-                    const response = await axios.get('http://localhost:3000/getUserProfile', {
+                    const response = await axios.get(`${Constants.expoConfig.extra.API_URL}/getUserProfile`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
 
@@ -54,6 +56,11 @@ const ProfileView = ({ navigation }) => {
 
     if (loading) {
         return <Text>Loading...</Text>;  // Show loading text while fetching data
+    }
+
+    // Ensure userData is not null before accessing it
+    if (!userData) {
+        return <Text>Error: User data not available</Text>;  // Show an error if userData is not available
     }
 
     return (

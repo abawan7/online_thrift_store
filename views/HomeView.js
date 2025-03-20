@@ -2,6 +2,7 @@ import React, {useRef, useState,useEffect} from 'react';
 import Header from './Header';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
+import Constants from 'expo-constants';
 import {
     View,
     Text,
@@ -86,7 +87,7 @@ const OnlineThriftStore = ({navigation}) => {
 useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://192.168.10.6:3000/data'); 
+        const response = await fetch(`${Constants.expoConfig.extra.API_URL}/data`); 
         const result = await response.json();
         //console.log("result : ",result);
         //console.log('inside function');

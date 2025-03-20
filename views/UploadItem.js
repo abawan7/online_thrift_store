@@ -8,7 +8,7 @@ import Header from './Header';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios'; // Import Axios
 import * as FileSystem from 'expo-file-system';  // Import Expo FileSystem to get the file name
-
+import Constants from 'expo-constants';
 const UploadItemView = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -100,7 +100,7 @@ const UploadItemView = () => {
       };
 
       // Post the data directly from here
-      const response = await axios.post('http://localhost:3000/listing', listingData);
+      const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/listing`, listingData);
 
       // Handle success, you can show an alert or navigate the user
       Alert.alert('Success', 'Listing uploaded successfully!');

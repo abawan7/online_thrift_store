@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import Header from './Header';  // Assuming the Header component is used in your project
-
+import Constants from 'expo-constants';
 const AddLocationScreen = ({ navigation }) => {
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);  // Initialize the loading state
@@ -29,7 +29,7 @@ const AddLocationScreen = ({ navigation }) => {
       }
   
       // Make a PUT request to update the user's location
-      await axios.put(`/updateLocation/${userId}`, {
+      await axios.put(`${Constants.expoConfig.extra.API_URL}/updateLocation/${userId}`, {
         location
       }, {
         headers: {

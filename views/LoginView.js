@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing JWT token
 import useLocation from '../hooks/userLocation'; // Import useLocation hook
 import AuthController from '../controllers/AuthController';
@@ -10,8 +11,6 @@ import AuthController from '../controllers/AuthController';
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
 
-// Set up Axios base URL for the API
-axios.defaults.baseURL = 'http://localhost:3000'; // Replace with the correct URL if needed
 
 export default function LoginView({ navigation }) {
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -21,7 +20,7 @@ export default function LoginView({ navigation }) {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post('/login', {
+      const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/login`, {
         email: emailOrUsername,
         password,
       });

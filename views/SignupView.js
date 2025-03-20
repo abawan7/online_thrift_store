@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
+import Constants from 'expo-constants';
 import PhoneInput from 'react-native-phone-number-input';  // Import the phone number input library
 import AuthController from '../controllers/AuthController';
 
@@ -50,18 +51,29 @@ export default function SignupView({ navigation }) {
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/signup', {
+      const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/signup`, {
         email,
         username,
         password,
         phone_number: phoneNumber,
       });
-
+      console.log("inside try func");
       alert(response.data.message);
       navigation.navigate('Login');
     } catch (err) {
+      console.log("inside catch func");
+      console.log('Error:', err);  // Log the entire error object
+    
+      // If the error has a response object, log that too for better insights
+      if (err.response) {
+        console.log('Response Data:', err.response.data);
+        console.log('Response Status:', err.response.status);
+        console.log('Response Headers:', err.response.headers);
+      }
+    
       setError(err.response?.data?.message || 'Something went wrong');
     }
+    
   };
 
   return (
