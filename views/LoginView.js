@@ -5,6 +5,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing JWT token
 import useLocation from '../hooks/userLocation'; // Import useLocation hook
+import AuthController from '../controllers/AuthController';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;

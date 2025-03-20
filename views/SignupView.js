@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, D
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
 import PhoneInput from 'react-native-phone-number-input';  // Import the phone number input library
+import AuthController from '../controllers/AuthController';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
