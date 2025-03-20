@@ -219,7 +219,6 @@ app.put('/updateLocation/:userId', async (req, res) => {
       return res.status(400).json({ message: 'Location is required' });
     }
 
-    console.log('123');
 
     // Update the user's location and access level in the database
     const updateQuery = `
@@ -247,6 +246,60 @@ app.put('/updateLocation/:userId', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+app.post('/listing', async (req, res) => {
+  const { user_id, name, description, price, location, tags, images } = req.body;
+
+  console.log(req);
+  try {
+    // Check if user exists (optional check)
+    const userCheckQuery = 'SELECT * FROM public.users WHERE user_id = $1';
+    const userCheckResult = await query(userCheckQuery, [user_id]);
+
+    if (userCheckResult.rows.length === 0) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    // Insert the listing into the 'listings' table
+    const insertListingQuery = `
+      INSERT INTO public.listings (user_id, name, description, price, location) 
+      VALUES ($1, $2, $3, $4, $5) RETURNING listing_id
+    `;
+    const insertListingParams = [user_id, name, description, price, location];
+    
+    const listingResult = await query(insertListingQuery, insertListingParams);
+    const listingId = listingResult.rows[0].listing_id;
+
+    // If there are tags, insert them into the 'listing_tag' table
+    if (tags && tags.length > 0) {
+      const insertTagsQuery = `
+        INSERT INTO public.listing_tag (listing_id, tag_name) 
+        VALUES ($1, $2)
+      `;
+      for (const tag of tags) {
+        await query(insertTagsQuery, [listingId, tag]);
+      }
+    }
+
+    // If there are images, insert them into the 'images' table
+    if (images && images.length > 0) {
+      const insertImagesQuery = `
+        INSERT INTO public.images (listing_id, filename) 
+        VALUES ($1, $2)
+      `;
+      for (const image of images) {
+        await query(insertImagesQuery, [listingId, image]);
+      }
+    }
+
+    // Send success response
+    res.status(201).json({ message: 'Listing created successfully', listingId });
+  } catch (err) {
+    console.error('Error creating listing:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 
 // Listen on the specified port
 app.listen(port, () => {
