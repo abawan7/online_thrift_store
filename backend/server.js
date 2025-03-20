@@ -298,6 +298,58 @@ app.post('/listing', async (req, res) => {
   }
 });
 
+app.get('/listings_with_user_and_images', async (req, res) => {
+  console.log('1234');
+  try {
+      const queryText = `
+          SELECT 
+              l.listing_id,
+              l.name,
+              l.description,
+              l.price,
+              l.location,
+              l.created_at,
+              u.name AS user_name,
+              u.email AS user_email,
+              i.filename AS image_filename
+          FROM listings l
+          JOIN users u ON l.user_id = u.user_id
+          LEFT JOIN images i ON l.listing_id = i.listing_id
+          ORDER BY l.created_at DESC;
+      `;
+
+      
+      const result = await query(queryText);
+
+      if (result.rows.length > 0) {
+        // Extract the image URL from the filename JSON
+        const listingsWithImageUrl = result.rows.map((listing) => {
+            if (listing.image_filename) {
+                try {
+                    // Parse the image_filename JSON and extract the 'url'
+                    const image = JSON.parse(listing.image_filename);
+                    listing.image_url = image.url.replace(/\\$/, ''); // Remove trailing backslash
+                } catch (error) {
+                    console.error("Error parsing image filename:", error);
+                }
+            }
+            return listing;
+        });
+
+        console.log(listingsWithImageUrl);
+        // Return the result with image URLs
+        res.json(listingsWithImageUrl);
+    } else {
+        res.status(404).json({ message: 'No listings found' });
+    }
+  } catch (error) {
+      console.error("Error fetching listings:", error);
+      res.status(500).json({ message: 'Error fetching listings' });
+  }
+});
+
+
+
 
 // Listen on the specified port
 app.listen(port, () => {

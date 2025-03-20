@@ -9,6 +9,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios'; // Import Axios
 import * as FileSystem from 'expo-file-system';  // Import Expo FileSystem to get the file name
 import Constants from 'expo-constants';
+
+
 const UploadItemView = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -84,9 +86,47 @@ const UploadItemView = () => {
     }
   };
 
+  const uploadImageToCloudinary = async (uri) => {
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${Constants.expoConfig.extra.CLOUD_NAME}/image/upload`;
+
+    const fileUri = uri;
+    const file = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      type: 'image/png',
+      name: uri.split('/').pop(),
+    });
+
+   // Use the actual upload preset name as per Cloudinary settings
+    formData.append('upload_preset', 'thrift_store_upload');  // Use your preset name
+
+    try {
+      const response = await axios.post(cloudinaryUrl, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const { secure_url, public_id } = response.data;
+      return { url: secure_url, path: public_id };
+    } catch (error) {
+      console.error('Error uploading to Cloudinary:', error.response ? error.response.data : error);
+      throw error;
+    }
+  };
+
+  // Function to handle form submission
   const handleSubmit = async () => {
     try {
-      const userId = await AsyncStorage.getItem('user_id'); // Get the user_id from AsyncStorage
+      const userId = await AsyncStorage.getItem('user_id');
+      const uploadedImages = [];
+
+      for (const uri of images.filter((image) => image !== null)) {
+        const { url, path } = await uploadImageToCloudinary(uri);
+        uploadedImages.push({ url, path });
+      }
 
       const listingData = {
         user_id: userId,
@@ -94,19 +134,17 @@ const UploadItemView = () => {
         description,
         quality: condition,
         location,
-        category: '', // Add category as needed
-        images: imageFilenames.filter(filename => filename !== null), // Send only non-null filenames
-        tags, // Pass the tags array
+        category: '',
+        images: uploadedImages,
+        tags,
+        price: price,
       };
 
-      // Post the data directly from here
       const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/listing`, listingData);
 
-      // Handle success, you can show an alert or navigate the user
       Alert.alert('Success', 'Listing uploaded successfully!');
       console.log('Listing created:', response.data);
-      
-      // Clear the form after successful upload
+
       setTitle('');
       setDescription('');
       setTag('');
@@ -114,8 +152,9 @@ const UploadItemView = () => {
       setLocation('');
       setPrice('');
       setCondition('');
-      setImages(Array(5).fill(null)); // Reset images
-      setImageFilenames(Array(5).fill(null)); // Reset filenames
+      setImages(Array(5).fill(null));
+      setImageFilenames(Array(5).fill(null));
+
     } catch (error) {
       console.error('Error submitting listing:', error);
       Alert.alert('Error', 'Failed to upload listing. Please try again.');

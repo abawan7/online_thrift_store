@@ -3,6 +3,7 @@ import Header from './Header';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
 import Constants from 'expo-constants';
+import { useFocusEffect } from '@react-navigation/native'; // Import useFocusEffect from react-navigation
 import {
     View,
     Text,
@@ -79,35 +80,10 @@ const products = [
 
 
 
-const OnlineThriftStore = ({navigation}) => {
+const OnlineThriftStore = ({ route, navigation }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
-    const [data,setData]=useState("");
-
-useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${Constants.expoConfig.extra.API_URL}/data`); 
-        const result = await response.json();
-        //console.log("result : ",result);
-        //console.log('inside function');
-        setData(result);
-        //console.log(data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-  
-    fetchData();
-  }, []);
-
-
-  useEffect(() => {
-    if (data) {
-      console.log('Updated data: ', data);  // This will log after the state has been updated
-    }
-  }, [data]);
-
+    const { data, loading } = route.params || {};
 
     const toggleMenu = () => {
         if (isMenuOpen) {
@@ -127,7 +103,7 @@ useEffect(() => {
     };
     const renderProduct = ({ item }) => (
         <View style={styles.productCard}>
-            <Image source={{ uri: item.image }} style={styles.productImage} />
+            <Image source={{ uri: item.image_url }} style={styles.productImage} />
             <View style={styles.productInfo}>
                 <Text style={styles.productName}>{item.name}</Text>
                 <Text style={styles.productLocation}>
@@ -181,7 +157,7 @@ useEffect(() => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.productList}
                 >
-                    {products.map((item) => (
+                    {data.map((item) => (
                         <View  key={item.id}>
                             {renderProduct({ item })}
                         </View>
@@ -190,12 +166,12 @@ useEffect(() => {
                 <Text style={styles.sectionTitle}>Recently Added</Text>
                 <ScrollView contentContainerStyle={styles.recentProductList}>
     {/* Loop through products and render in two columns */}
-    {products.map((item, index) => (
+    {data.map((item, index) => (
         <View
             key={item.id}
             style={[styles.recentProductCard, index % 2 === 1 && styles.secondColumn]} // To create two columns
         >
-            <Image source={{ uri: item.image }} style={styles.recentProductImage} />
+            <Image source={{ uri: item.image_url }} style={styles.recentProductImage} />
             <Text style={styles.recentProductName}>{item.name}</Text>
             <Text style={styles.recentProductLocation}>
                 <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
