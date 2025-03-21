@@ -3,9 +3,10 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ImageBackground, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import axios from 'axios';
-import Constants from 'expo-constants';
 import PhoneInput from 'react-native-phone-number-input';  // Import the phone number input library
 import AuthController from '../controllers/AuthController';
+import { KeyboardAvoidingView, Platform , ScrollView} from 'react-native';
+
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
@@ -51,34 +52,28 @@ export default function SignupView({ navigation }) {
     }
 
     try {
-      const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/signup`, {
+      const response = await axios.post('http://192.168.100.233:3000/signup', {
         email,
         username,
         password,
         phone_number: phoneNumber,
       });
-      console.log("inside try func");
+
       alert(response.data.message);
       navigation.navigate('Login');
     } catch (err) {
-      console.log("inside catch func");
-      console.log('Error:', err);  // Log the entire error object
-    
-      // If the error has a response object, log that too for better insights
-      if (err.response) {
-        console.log('Response Data:', err.response.data);
-        console.log('Response Status:', err.response.status);
-        console.log('Response Headers:', err.response.headers);
-      }
-    
       setError(err.response?.data?.message || 'Something went wrong');
     }
-    
   };
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
     <ImageBackground source={require('../assets/Login_page_background.png')} style={styles.container} imageStyle={styles.backgroundImage}>
-      <View style={styles.signupBox}>
+    <View style={[styles.signupBox, { marginTop: 50 }]}>
         <Text style={styles.title}>Sign Up</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -157,6 +152,8 @@ export default function SignupView({ navigation }) {
       </View>
       <StatusBar style="auto" />
     </ImageBackground>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing JWT token
 import useLocation from '../hooks/userLocation'; // Import useLocation hook
 import AuthController from '../controllers/AuthController';
+import { KeyboardAvoidingView, Platform , ScrollView} from 'react-native';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height * 0.9;
@@ -72,8 +73,13 @@ export default function LoginView({ navigation }) {
   
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
     <ImageBackground source={require('../assets/Login_page_background.png')} style={styles.container} imageStyle={styles.backgroundImage}>
-      <View style={styles.loginBox}>
+      <View style={[styles.loginBox, { marginTop: 50 }]}>
         <Text style={styles.title}>Login</Text>
 
         {/* Error Message */}
@@ -86,7 +92,7 @@ export default function LoginView({ navigation }) {
             placeholder="Email or username"
             placeholderTextColor="#888"
             value={emailOrUsername}
-            onChangeText={setEmailOrUsername}
+            onChangeText={(text) => setEmailOrUsername(text.toLowerCase())}
           />
         </View>
 
@@ -119,6 +125,8 @@ export default function LoginView({ navigation }) {
       </View>
       <StatusBar style="auto" />
     </ImageBackground>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

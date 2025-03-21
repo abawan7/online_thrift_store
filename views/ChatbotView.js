@@ -36,7 +36,7 @@ const ChatbotView = () => {
         if (message.trim() === "") return;
         setMessages([...messages, { sender: "You", text: message }]);
         try {
-              const response = await axios.get(`http://0.0.0.0:8000/chat?user_id=${AsyncStorage.getItem('user_id')}&user_input=${message}`);
+              const response = await axios.get(`http://192.168.100.233:8000/chat?user_id=${AsyncStorage.getItem('user_id')}&user_input=${message}`);
         
               const botResponse = response.data.response;
               setMessages((prevMessages) => [...prevMessages, { sender: "Bot", text: botResponse }]);

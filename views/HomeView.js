@@ -117,7 +117,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                     <Ionicons name="heart-outline" size={16} color="black" />
                     </View>
                 </View>
-                <Text style={styles.productPrice}>{item.price}</Text>
+                <Text style={styles.productPrice}>{"PKR "}{item.price}</Text>
             </View>
         </View>
     );
@@ -184,7 +184,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                     <Ionicons name="heart-outline" size={16} color="black" />
                 </View>
             </View>
-            <Text style={styles.recentProductPrice}>{item.price}</Text>
+            <Text style={styles.recentProductPrice}>{"PKR "}{item.price}</Text>
         </View>
     ))}
 </ScrollView>
