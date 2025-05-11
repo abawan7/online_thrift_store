@@ -351,6 +351,32 @@ app.get('/listings_with_user_and_images', async (req, res) => {
 
 
 
+// Get listings by user ID
+app.get('/listings/user/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Validate that userId is a number
+    if (isNaN(parseInt(userId))) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    // Query to get all listings for a specific user
+    const result = await query(
+      'SELECT * FROM public.listings WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    
+    res.json({ listings: result.rows });
+  } catch (err) {
+    console.error('Error fetching user listings:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+
+
 // Listen on the specified port
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

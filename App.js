@@ -24,22 +24,30 @@ const Stack = createStackNavigator();
 export default function AppNavigator() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Function to fetch data that can be called from other components
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${Constants.expoConfig.extra.API_URL}/listings_with_user_and_images`);
+            const result = await response.json();
+            console.log("result : ", result);
+            setData(result);
+            setLoading(false);
+        } catch (error) {
+            console.error(error);
+            setLoading(false);
+        }
+    };
+
+    // Function to trigger a refresh from other components
+    const refreshData = () => {
+        setRefreshTrigger(prev => prev + 1);
+    };
 
     useEffect(() => {
-        // Fetch data
-        const fetchData = async () => {
-            try {
-                const response = await fetch(`${Constants.expoConfig.extra.API_URL}/listings_with_user_and_images`);
-                const result = await response.json();
-                console.log("result : ", result);
-                setData(result);
-                setLoading(false);
-            } catch (error) {
-                console.error(error);
-                setLoading(false);
-            }
-        };
-
+        // Fetch data whenever refreshTrigger changes
         fetchData();
         
         // Initialize location tracking when app starts
@@ -50,7 +58,7 @@ export default function AppNavigator() {
                 console.warn('Failed to initialize location tracking');
             }
         });
-    }, []);
+    }, [refreshTrigger]);
 
     return (
         <NavigationContainer>
@@ -67,11 +75,11 @@ export default function AppNavigator() {
                 <Stack.Screen name="Forgetpassword" component={ForgetPasswordView} />
                 <Stack.Screen name="ChangePassword" component={ChangePasswordView} />
                 
-                {/* Pass loading state and data as params */}
+                {/* Pass loading state, data, and refresh function as params */}
                 <Stack.Screen
                     name="Home"
                     component={HomeView}
-                    initialParams={{ data: data, loading: loading }} // Ensure this is passed correctly
+                    initialParams={{ data: data, loading: loading, refreshData: refreshData }}
                 />
 
                 <Stack.Screen name="ViewProduct" component={ViewProductScreen} />
@@ -86,7 +94,11 @@ export default function AppNavigator() {
                 />
                 <Stack.Screen name="Profile" component={ProfileView} />
                 <Stack.Screen name="editprofile" component={EditProfileView} />
-                <Stack.Screen name="UploadItem" component={UploadItemView} />
+                <Stack.Screen 
+                    name="UploadItem" 
+                    component={UploadItemView} 
+                    initialParams={{ refreshData: refreshData }}
+                />
                 <Stack.Screen name="AddLocation" component={AddLocation} />
             </Stack.Navigator>
         </NavigationContainer>
