@@ -18,6 +18,7 @@ import { initializeLocationTracking } from './services/AppLocationManager';
 import ViewProductScreen from './views/ViewProductScreen';
 import SellerProfileView from './views/SellerProfileView';
 import InventoryView from './views/InventoryView';
+import EditItemView from './views/EditItem';
 
 const Stack = createStackNavigator();
 
@@ -97,6 +98,11 @@ export default function AppNavigator() {
                 <Stack.Screen 
                     name="UploadItem" 
                     component={UploadItemView} 
+                    initialParams={{ refreshData: refreshData }}
+                />
+                <Stack.Screen 
+                    name="EditItem" 
+                    component={EditItemView} 
                     initialParams={{ refreshData: refreshData }}
                 />
                 <Stack.Screen name="AddLocation" component={AddLocation} />

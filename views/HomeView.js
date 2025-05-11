@@ -145,18 +145,18 @@ const OnlineThriftStore = ({ route, navigation }) => {
                 <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
             )}
             <ScrollView>
-            <ScrollView horizontal contentContainerStyle={styles.categoryList}>
-    {categories.map((item) => (
-        <TouchableOpacity style={styles.category} key={item.id}>
-            <Image source={item.image} style={styles.categoryImage} />
-            <Text style={styles.categoryText}>{item.name}</Text>
-        </TouchableOpacity>
-    ))}
-</ScrollView>
+                <ScrollView horizontal contentContainerStyle={styles.categoryList}>
+                    {categories.map((item) => (
+                        <TouchableOpacity style={styles.category} key={item.id}>
+                            <Image source={item.image} style={styles.categoryImage} />
+                            <Text style={styles.categoryText}>{item.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
 
                 <Text style={styles.sectionTitle}>For You</Text>
-                // In the ScrollView section where you render products
+                {/* In the ScrollView section where you render products */}
                 <ScrollView 
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -172,7 +172,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                     ))}
                 </ScrollView>
                 <Text style={styles.sectionTitle}>Recently Added</Text>
-                // In the Recently Added section
+                {/* In the Recently Added section */}
                 <ScrollView contentContainerStyle={styles.recentProductList}>
                     {/* Loop through products and render in two columns */}
                     {data.map((item, index) => (
@@ -198,8 +198,6 @@ const OnlineThriftStore = ({ route, navigation }) => {
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
-
-
             </ScrollView>
 
             {/* Footer */}

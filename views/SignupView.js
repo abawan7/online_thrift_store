@@ -52,13 +52,13 @@ export default function SignupView({ navigation }) {
     }
 
     try {
-      const response = await axios.post('http://192.168.0.101:3000/signup', {
+      const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/signup`, {
         email,
         username,
         password,
         phone_number: phoneNumber,
       });
-
+  
       alert(response.data.message);
       navigation.navigate('Login');
     } catch (err) {
@@ -127,7 +127,7 @@ export default function SignupView({ navigation }) {
         {/* Phone number input */}
         <View style={styles.inputContainer}>
           <PhoneInput
-            defaultValue={phoneNumber}
+            value={phoneNumber}
             defaultCode={phoneCode} // Set the default country code to Pakistan (or the current value of phoneCode)
             onChangeFormattedText={text => {
               setPhoneNumber(text);  // Set the phone number with country code

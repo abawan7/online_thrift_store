@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, FlatList, Text, TouchableOpacity, Dimensions, Animated } from 'react-native';
-import Header from './Header'; // Import Header component
+import { View, StyleSheet, FlatList, Text, TouchableOpacity, Dimensions, Animated, Alert, Image } from 'react-native';
+import Header from './Header';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
-import useLocation from '../hooks/userLocation'; // Import useLocation hook
+import useLocation from '../hooks/userLocation';
 import axios from "axios";
-// Import the location service
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { startLocationTracking, stopLocationTracking, isLocationTrackingEnabled, getCurrentLocationAndLog } from '../services/LocationService';
-
 
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.7;
@@ -33,8 +33,18 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
 const WishlistView = ({ navigation }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
+  const [wishlistItems, setWishlistItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
+  const [keywords, setKeywords] = useState({});
+  const [showLocation, setShowLocation] = useState(false);
+  const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
+  const [matchedSellers, setMatchedSellers] = useState([]);
+  const [nearbySellers, setNearbySellers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTracking, setIsTracking] = useState(false);
 
-  // Add the toggleMenu function here, inside the component
+  // Toggle menu function
   const toggleMenu = () => {
     if (isMenuOpen) {
       Animated.timing(slideAnim, {
@@ -51,13 +61,6 @@ const WishlistView = ({ navigation }) => {
       }).start();
     }
   };
-
-  const [showLocation, setShowLocation] = useState(false); // Control visibility
-  const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
-  const [matchedSellers, setMatchedSellers] = useState([]);
-  const [nearbySellers, setNearbySellers] = useState([]); // Sellers within proximity
-  const [isLoading, setIsLoading] = useState(true); // Loading state for button
-  const [isTracking, setIsTracking] = useState(false);
 
   // Check if tracking is enabled on component mount
   useEffect(() => {
@@ -83,165 +86,296 @@ const WishlistView = ({ navigation }) => {
     }
   };
 
-  const [keywords, setKeywords] = useState({});
-  const wishlistItems = [
-    "I want a coffee table",
-    "iPhone 16",
-    "A Macbook 2021",
-    "One Smart Fitness Watch",
-    "Handmade Ceramic Vase",
-    "An Electric Mountain Bike",
-  ];
-
+  // Fetch wishlist items from the database
   useEffect(() => {
-    const fetchKeywords = async () => {
+    const fetchWishlistItems = async () => {
       try {
-        const API_URL = "http://192.168.0.101/extract-keywords"; // Use for Android Emulator
-        // Use "http://192.168.1.10:3000/extract-keywords" for a real device
-
-        console.log("Sending request to:", API_URL);
-
-        const response = await axios.post(API_URL, { wishlistItems });
-
-        console.log("Response received:", response.data);
-        setKeywords(response.data.keywords);
-      } catch (error) {
-        console.error("Error fetching keywords:", error);
-        if (error.response) {
-          console.error("Response Error:", error.response.data);
-        } else if (error.request) {
-          console.error("Request Error: No response received", error.request);
-        } else {
-          console.error("General Error:", error.message);
+        const storedUserId = await AsyncStorage.getItem('user_id');
+        setUserId(storedUserId);
+        
+        if (storedUserId) {
+          const token = await AsyncStorage.getItem('token');
+          
+          const response = await axios.get(
+            `${Constants.expoConfig.extra.API_URL}/wishlist/${storedUserId}`,
+            {
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          );
+          
+          setWishlistItems(response.data.wishlist);
+          setLoading(false);
+          
+          // Extract keywords for each wishlist item
+          if (response.data.wishlist.length > 0) {
+            extractKeywords(response.data.wishlist.map(item => item.item_description));
+          }
         }
+      } catch (error) {
+        console.error('Error fetching wishlist items:', error);
+        setLoading(false);
+        
+        // For demo purposes, set some dummy data if API fails
+        const dummyWishlist = [
+          { wishlist_id: 1, item_description: "I want a coffee table", created_at: new Date().toISOString() },
+          { wishlist_id: 2, item_description: "iPhone 16", created_at: new Date().toISOString() },
+          { wishlist_id: 3, item_description: "A Macbook 2021", created_at: new Date().toISOString() },
+          { wishlist_id: 4, item_description: "One Smart Fitness Watch", created_at: new Date().toISOString() },
+          { wishlist_id: 5, item_description: "Handmade Ceramic Vase", created_at: new Date().toISOString() },
+          { wishlist_id: 6, item_description: "An Electric Mountain Bike", created_at: new Date().toISOString() },
+        ];
+        
+        setWishlistItems(dummyWishlist);
+        extractKeywords(dummyWishlist.map(item => item.item_description));
       }
     };
-
-    fetchKeywords();
+    
+    fetchWishlistItems();
   }, []);
-  
-  const renderWishlistItem2 = ({ item }) => (
+
+  // Extract keywords from wishlist items
+  const extractKeywords = async (items) => {
+    try {
+      const API_URL = `${Constants.expoConfig.extra.API_URL}/extract-keywords`;
+      
+      const response = await axios.post(API_URL, { wishlistItems: items });
+      
+      setKeywords(response.data.keywords);
+    } catch (error) {
+      console.error("Error extracting keywords:", error);
+      
+      // Fallback keywords if API fails
+      const fallbackKeywords = {};
+      items.forEach(item => {
+        fallbackKeywords[item] = item.split(' ').filter(word => word.length > 3);
+      });
+      
+      setKeywords(fallbackKeywords);
+    }
+  };
+
+  // Find matching sellers based on wishlist items
+  const findMatchingSellers = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get user location from AsyncStorage
+      const userLat = await AsyncStorage.getItem('latitude');
+      const userLon = await AsyncStorage.getItem('longitude');
+      
+      // Get all listings data from the Home route params
+      const { data } = navigation.getState().routes.find(route => route.name === 'Home').params;
+      
+      // Group listings by seller
+      const sellerMap = {};
+      
+      data.forEach(listing => {
+        if (!sellerMap[listing.user_email]) {
+          sellerMap[listing.user_email] = {
+            name: listing.user_name,
+            email: listing.user_email,
+            address: listing.location,
+            items: []
+          };
+        }
+        
+        sellerMap[listing.user_email].items.push({
+          listing_id: listing.listing_id,
+          name: listing.name,
+          price: listing.price,
+          image: listing.image_url,
+          description: listing.description,
+          location: listing.location
+        });
+      });
+      
+      // Convert to array
+      const sellers = Object.values(sellerMap);
+      
+      // Find sellers with matching items based on keywords
+      const matched = [];
+      const nearby = [];
+      
+      // Process each seller with for...of loop (supports await)
+      for (const seller of sellers) {
+        let hasMatch = false;
+        
+        // Check each wishlist item against seller's items
+        wishlistItems.forEach(wishItem => {
+          const itemKeywords = keywords[wishItem.item_description] || [];
+          
+          // Check if any seller item matches the keywords
+          seller.items.forEach(sellerItem => {
+            const itemName = sellerItem.name.toLowerCase();
+            const itemDesc = sellerItem.description ? sellerItem.description.toLowerCase() : '';
+            
+            const matchesKeyword = itemKeywords.some(keyword => 
+              itemName.includes(keyword.toLowerCase()) || 
+              itemDesc.includes(keyword.toLowerCase())
+            );
+            
+            if (matchesKeyword) {
+              hasMatch = true;
+            }
+          });
+        });
+        
+        if (hasMatch) {
+          matched.push(seller);
+        }
+        
+        // Check if seller is nearby (within 10km)
+        if (seller.location && userLat && userLon) {
+          try {
+            const sellerCoords = await geocodeAddress(seller.location);
+            
+            if (sellerCoords) {
+              const distance = haversineDistance(
+                parseFloat(userLat), 
+                parseFloat(userLon), 
+                sellerCoords.lat, 
+                sellerCoords.lon
+              );
+              
+              if (distance <= 10) { // Within 10km
+                nearby.push({...seller, distance: distance.toFixed(1)});
+              }
+            }
+          } catch (error) {
+            console.error('Error geocoding seller address:', error);
+          }
+        }
+      }
+      
+      setMatchedSellers(matched);
+      setNearbySellers(nearby);
+      setIsLoading(false);
+      setShowLocation(true);
+    } catch (error) {
+      console.error('Error finding matching sellers:', error);
+      setIsLoading(false);
+      Alert.alert('Error', 'Failed to find matching sellers. Please try again.');
+    }
+  };
+
+  // Add a new wishlist item
+  const addWishlistItem = async (description) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      
+      await axios.post(
+        `${Constants.expoConfig.extra.API_URL}/wishlist`,
+        {
+          user_id: userId,
+          item_description: description
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      // Refresh wishlist items
+      const response = await axios.get(
+        `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      setWishlistItems(response.data.wishlist);
+      
+      // Extract keywords for the new item
+      const updatedItems = [...wishlistItems, { item_description: description }];
+      extractKeywords(updatedItems.map(item => item.item_description));
+      
+      Alert.alert('Success', 'Wishlist item added successfully!');
+    } catch (error) {
+      console.error('Error adding wishlist item:', error);
+      Alert.alert('Error', 'Failed to add wishlist item. Please try again.');
+    }
+  };
+
+  // Delete a wishlist item
+  const deleteWishlistItem = async (wishlistId) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      
+      await axios.delete(
+        `${Constants.expoConfig.extra.API_URL}/wishlist/${wishlistId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      // Update local state
+      setWishlistItems(wishlistItems.filter(item => item.wishlist_id !== wishlistId));
+      
+      Alert.alert('Success', 'Wishlist item deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting wishlist item:', error);
+      Alert.alert('Error', 'Failed to delete wishlist item. Please try again.');
+    }
+  };
+
+  // Render a wishlist item
+  const renderWishlistItem = ({ item }) => (
     <View style={styles.itemContainer}>
-      <Text style={styles.itemText}>{item}</Text>
-      <Text style={styles.keywordText}>
-        Keywords: {keywords[item] ? keywords[item].join(", ") : "Extracting..."}
-      </Text>
+      <View style={styles.itemContent}>
+        <Text style={styles.itemText}>{item.item_description}</Text>
+        <Text style={styles.keywordText}>
+          Keywords: {keywords[item.item_description] ? keywords[item.item_description].join(", ") : "Extracting..."}
+        </Text>
+        <Text style={styles.dateText}>
+          Added on: {new Date(item.created_at).toLocaleDateString()}
+        </Text>
+      </View>
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => deleteWishlistItem(item.wishlist_id)}
+      >
+        <Ionicons name="trash-outline" size={20} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 
-
-
-
-
-  const sellers = [
-    {
-      name: "Abdullah",
-      address: "Faisal Town, Lahore",
-      items: [
-        {
-          name: "Macbook 2021",
-          price: 200000,
-          image: "https://appleshop.com.pk/wp-content/uploads/2021/10/mbp14-spacegray-gallery5.jpg",
-        },
-        {
-          name: "iPhone 16",
-          price: 150000,
-          image: "https://mac-center.com.pr/cdn/shop/files/iPhone_16_Pro_Max_Desert_Titanium_PDP_Image_Position_1__en-US_d5e2a09b-4a28-4e79-a2f6-92ae40158896.jpg?v=1726226760&width=823",
-        },
-      ],
-    },
-    {
-      name: "Hamza",
-      address: "Valencia, Lahore",
-      items: [
-        {
-          name: "iPhone 16",
-          price: 145000,
-          image: "https://mac-center.com.pr/cdn/shop/files/iPhone_16_Pro_Max_Desert_Titanium_PDP_Image_Position_1__en-US_d5e2a09b-4a28-4e79-a2f6-92ae40158896.jpg?v=1726226760&width=823",
-        },
-        {
-          name: "Macbook 2021",
-          price: 198000,
-          image: "https://appleshop.com.pk/wp-content/uploads/2021/10/mbp14-spacegray-gallery5.jpg",
-        },
-      ],
-    },
-    {
-      name: "Ifra",
-      address: "DHA Phase 5, Lahore",
-      items: [
-        {
-          name: "iPhone 16",
-          price: 148000,
-          image: "https://mac-center.com.pr/cdn/shop/files/iPhone_16_Pro_Max_Desert_Titanium_PDP_Image_Position_1__en-US_d5e2a09b-4a28-4e79-a2f6-92ae40158896.jpg?v=1726226760&width=823",
-        },
-        {
-          name: "Electric Mountain Bike",
-          price: 50000,
-          image: "https://via.placeholder.com/150/mountainbike",
-        },
-      ],
-    },
-    {
-      name: "Saba",
-      address: "Lake city, Lahore",
-      items: [
-        {
-          name: "Smart Fitness Watch",
-          price: 10000,
-          image: "https://via.placeholder.com/150/fitnesswatch",
-        },
-        {
-          name: "Macbook 2021",
-          price: 199000,
-          image: "https://appleshop.com.pk/wp-content/uploads/2021/10/mbp14-spacegray-gallery5.jpg",
-        },
-      ],
-    },
-  ];
-
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  const matchAndGeocodeSellers = async () => {
-    // Filter sellers whose items match any item in the wishlist
-    const matchingSellers = sellers.filter((seller) =>
-      seller.items.some((item) => wishlistItems.includes(item.name)) // Compare item names
-    );
-
-    const geocodedResults = [];
-    for (const seller of matchingSellers) {
-      try {
-        const result = await geocodeAddress(seller.address); // Call geocodeAddress
-        if (result) {
-          // Add latitude and longitude to the seller object
-          geocodedResults.push({ ...seller, lat: result.lat, lon: result.lon });
-        }
-        await delay(1000); // Add a 1-second delay between requests
-      } catch (error) {
-        console.error(`Error geocoding address for ${seller.name}:`, error);
-      }
-    }
-
-    setMatchedSellers(geocodedResults); // Set the state with geocoded results
-  };
-
-  const renderWishlistItem = ({ item, index }) => (
-    <View style={styles.itemContainer}>
-      <Text style={styles.itemText}>{`${index + 1}. ${item}`}</Text>
-      <View style={styles.itemActions}>
-        <TouchableOpacity>
-          <Ionicons name="create-outline" size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Ionicons name="trash-outline" size={20} />
-        </TouchableOpacity>
+  // Render a seller card
+  const renderSellerCard = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.sellerCard}
+      onPress={() => navigation.navigate('SellerProfile', { sellerEmail: item.email, sellerName: item.name })}
+    >
+      <View style={styles.sellerInfo}>
+        <Text style={styles.sellerName}>{item.name}</Text>
+        <Text style={styles.sellerAddress}>
+          <Ionicons name="location-outline" size={14} color="#666" /> {item.address}
+        </Text>
+        {item.distance && (
+          <Text style={styles.distanceText}>{item.distance} km away</Text>
+        )}
       </View>
-    </View>
+      <View style={styles.sellerItems}>
+        <Text style={styles.itemsTitle}>Matching Items:</Text>
+        <FlatList
+          data={item.items.slice(0, 2)} // Show only first 2 items
+          horizontal
+          renderItem={({ item: product }) => (
+            <TouchableOpacity 
+              style={styles.productCard}
+              onPress={() => navigation.navigate('ViewProduct', { product })}
+            >
+              <Image source={{ uri: product.image }} style={styles.productImage} />
+              <Text style={styles.productName}>{product.name}</Text>
+              <Text style={styles.productPrice}>PKR {product.price}</Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(product) => product.listing_id.toString()}
+        />
+      </View>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      {/* Use Header Component */}
       <Header
         title="Online Thrift Store"
         onMenuPress={toggleMenu}
@@ -249,86 +383,115 @@ const WishlistView = ({ navigation }) => {
       />
 
       {/* Side Menu */}
-      <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} />
+      <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} menuWidth={menuWidth} />
 
       {/* Overlay */}
       {isMenuOpen && (
         <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
       )}
 
-      <View style={styles.mainContent}>
+      <View style={styles.content}>
         {/* Wishlist Icon and Title */}
         <View style={styles.titleContainer}>
-          <Ionicons name="bag-outline" size={75} color="#1A434E" />
-          <Text style={styles.wishlistTitle}>Wishlist Items</Text>
-          <View style={styles.underline} />
+          <Ionicons name="heart-outline" size={40} color="#fff" style={styles.titleIcon} />
+          <Text style={styles.title}>Wishlist</Text>
         </View>
 
-        {/* Item Count and Filter Icon */}
-        <View style={styles.itemCountContainer}>
-          <Text style={styles.itemCountText}>{`${wishlistItems.length} Items`}</Text>
-          <TouchableOpacity>
-            <Ionicons name="filter-outline" size={25} color="black" />
+        {/* Location Tracking Toggle */}
+        <View style={styles.trackingContainer}>
+          <Text style={styles.trackingText}>
+            Enable location tracking to find items near you
+          </Text>
+          <TouchableOpacity
+            style={[styles.trackingButton, isTracking ? styles.trackingEnabled : styles.trackingDisabled]}
+            onPress={() => toggleLocationTracking(!isTracking)}
+          >
+            <Text style={styles.trackingButtonText}>
+              {isTracking ? 'Tracking Enabled' : 'Enable Tracking'}
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Wishlist Items */}
-        <View style={styles.listContainer}>
-          <FlatList
-            data={wishlistItems}
-            renderItem={renderWishlistItem}
-            keyExtractor={(item, index) => index.toString()}
-          />
+        <View style={styles.wishlistContainer}>
+          <Text style={styles.sectionTitle}>Your Wishlist Items</Text>
+          
+          {loading ? (
+            <Text style={styles.loadingText}>Loading wishlist items...</Text>
+          ) : wishlistItems.length === 0 ? (
+            <Text style={styles.emptyText}>Your wishlist is empty. Add items you're looking for!</Text>
+          ) : (
+            <FlatList
+              data={wishlistItems}
+              renderItem={renderWishlistItem}
+              keyExtractor={(item) => item.wishlist_id.toString()}
+              style={styles.wishlistList}
+            />
+          )}
+          
+          {/* Add Wishlist Item Button */}
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => {
+              Alert.prompt(
+                'Add Wishlist Item',
+                'What item are you looking for?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Add', onPress: (text) => addWishlistItem(text) }
+                ]
+              );
+            }}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+            <Text style={styles.addButtonText}>Add Item</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-      
-      <View>
+
+        {/* Find Matching Sellers Button */}
+        <TouchableOpacity 
+          style={styles.findButton}
+          onPress={findMatchingSellers}
+          disabled={isLoading}
+        >
+          <Text style={styles.findButtonText}>
+            {isLoading ? 'Finding Sellers...' : 'Find Matching Sellers'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Matching Sellers Section */}
         {showLocation && (
-          <View style={styles.locationContainer}>
-            <Text style={styles.locationTitle}>Your Current Location:</Text>
-            {latitude && longitude ? (
+          <View style={styles.sellersContainer}>
+            {matchedSellers.length > 0 ? (
               <>
-                <Text style={styles.locationText}>
-                  Latitude: {latitude}, Longitude: {longitude}
-                </Text>
-                <Text style={styles.locationText}>
-                  Address: {address || "Fetching address..."}
-                </Text>
+                <Text style={styles.sectionTitle}>Sellers with Matching Items</Text>
+                <FlatList
+                  data={matchedSellers}
+                  renderItem={renderSellerCard}
+                  keyExtractor={(item) => item.email}
+                  style={styles.sellersList}
+                />
               </>
             ) : (
-              <Text style={styles.locationText}>
-                {errorMsg || "Fetching location..."}
-              </Text>
+              <Text style={styles.emptyText}>No sellers found with matching items.</Text>
+            )}
+
+            {/* Nearby Sellers Section */}
+            {nearbySellers.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Sellers Near You</Text>
+                <FlatList
+                  data={nearbySellers}
+                  renderItem={renderSellerCard}
+                  keyExtractor={(item) => item.email}
+                  style={styles.sellersList}
+                />
+              </>
             )}
           </View>
         )}
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        disabled={isLoading}
-        onPress={async () => {
-          // Call findNearbySellers and wait for it to complete
-          await findNearbySellers();
-
-          // Ensure that the nearbySellers array is populated before navigating
-          if (nearbySellers.length > 0) {
-            navigation.navigate('NotificationScreen', {
-              notifications: nearbySellers.map((seller) => ({
-                title: `Seller ${seller.name} is nearby! In ${seller.address}`,
-                time: 'Just now',
-                items: seller.items.filter((item) => wishlistItems.includes(item.name)), // Filter only items in the wishlist
-                location: seller.address,
-                sellerImage: 'https://static.vecteezy.com/system/resources/thumbnails/005/544/718/small_2x/profile-icon-design-free-vector.jpg', // Placeholder image for the seller
-              })),
-            });
-          }
-        }}
-      >
-        <Text style={styles.buttonText}>
-          {isLoading ? "Matching..." : "Check Proximity"}
-        </Text>
-      </TouchableOpacity>
       <Footer />
     </View>
   );
@@ -337,112 +500,220 @@ const WishlistView = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  mainContent: {
-    flex: 1,
-    padding: 16,
-  },
-  titleContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  wishlistTitle: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#1A434E',
-    marginTop: 8,
-  },
-  locationContainer: {
-    marginBottom: 16,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#E6F7FF",
-  },
-  locationTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
-  },
-  locationText: {
-    fontSize: 14,
-    color: "#555",
-  },
-  underline: {
-    width: 150,
-    height: 2,
     backgroundColor: '#1A434E',
-    marginTop: 4,
-  },
-  itemCountContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  itemCountText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  listContainer: {
-    backgroundColor: 'rgba(183, 202, 174, 0.44)', // 44% transparency
-    borderRadius: 12,
-    padding: 16,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F5',
-  },
-  itemText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: 12,
   },
   overlay: {
     position: 'absolute',
     top: 0,
-    bottom: 0,
-    left: 182,
+    left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 500,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 5,
   },
-  button: {
-    width: '60%',
-    backgroundColor: '#00494D',
-    borderRadius: 15,
-    paddingVertical: 15,
+  content: {
+    flex: 1,
+    paddingHorizontal: 15,
+    paddingBottom: 20,
+  },
+  titleContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
-    marginLeft: 80,
+    marginVertical: 15,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
+  titleIcon: {
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#fff',
   },
   trackingContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    backgroundColor: '#E6F7FF',
   },
   trackingText: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 14,
     color: '#333',
-    fontWeight: '500',
+  },
+  trackingButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  trackingEnabled: {
+    backgroundColor: '#4CAF50',
+  },
+  trackingDisabled: {
+    backgroundColor: '#F44336',
+  },
+  trackingButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  wishlistContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  wishlistList: {
+    maxHeight: 300,
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  keywordText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 5,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#999',
+  },
+  deleteButton: {
+    backgroundColor: '#F44336',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButton: {
+    flexDirection: 'row',
+    backgroundColor: '#1A434E',
+    borderRadius: 8,
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  findButton: {
+    backgroundColor: '#FF9800',
+    borderRadius: 8,
+    padding: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  findButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+  },
+  emptyText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  sellersContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  sellersList: {
+    maxHeight: 400,
+  },
+  sellerCard: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+  sellerInfo: {
+    marginBottom: 10,
+  },
+  sellerName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  sellerAddress: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  distanceText: {
+    fontSize: 14,
+    color: '#1A434E',
+    fontWeight: 'bold',
+  },
+  sellerItems: {
+    marginTop: 10,
+  },
+  itemsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  productCard: {
+    width: 120,
+    marginRight: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  productImage: {
+    width: '100%',
+    height: 80,
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  productName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  productPrice: {
+    fontSize: 12,
+    color: '#1A434E',
+    fontWeight: 'bold',
   },
 });
 

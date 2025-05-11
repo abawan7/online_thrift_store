@@ -101,10 +101,19 @@ const InventoryView = ({ navigation }) => {
         <Text style={styles.itemPrice}>PKR {item.price}</Text>
       </View>
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('EditItem', { 
+            item: item,
+            refreshData: navigation.getState().routes.find(route => route.name === 'Home').params.refreshData
+          })}
+        >
           <Ionicons name="pencil-outline" size={20} color="#333" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('ViewProduct', { product: item })}
+        >
           <Ionicons name="eye-outline" size={20} color="#333" />
         </TouchableOpacity>
       </View>

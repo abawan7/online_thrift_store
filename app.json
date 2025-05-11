@@ -20,12 +20,16 @@
           "locationAlwaysPermission": "Allow Online Thrift Store to use your location in the background to find nearby items.",
           "locationWhenInUsePermission": "Allow Online Thrift Store to use your location when the app is open."
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["location", "fetch"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {

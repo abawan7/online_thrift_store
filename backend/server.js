@@ -290,6 +290,119 @@ app.post('/listing', async (req, res) => {
       }
     }
 
+    // Update a listing
+    app.put('/listing/:id', async (req, res) => {
+      const listingId = req.params.id;
+      const { 
+        user_id, 
+        name, 
+        description, 
+        quality, 
+        location, 
+        category, 
+        images, 
+        tags, 
+        price 
+      } = req.body;
+    
+      try {
+        // First, verify that the listing exists and belongs to the user
+        const checkListing = await query(
+          'SELECT * FROM listings WHERE listing_id = $1 AND user_id = $2',
+          [listingId, user_id]
+        );
+    
+        if (checkListing.rows.length === 0) {
+          return res.status(404).json({ 
+            message: 'Listing not found or you do not have permission to update it' 
+          });
+        }
+    
+        // Update the listing details
+        const updateResult = await query(
+          `UPDATE listings 
+           SET name = $1, description = $2, quality = $3, location = $4, 
+               category = $5, price = $6, updated_at = CURRENT_TIMESTAMP
+           WHERE listing_id = $7 RETURNING *`,
+          [name, description, quality, location, category, price, listingId]
+        );
+    
+        // Delete existing images for this listing
+        await query('DELETE FROM images WHERE listing_id = $1', [listingId]);
+    
+        // Insert new images
+        if (images && images.length > 0) {
+          for (const image of images) {
+            await query(
+              'INSERT INTO images (listing_id, url, cloudinary_id) VALUES ($1, $2, $3)',
+              [listingId, image.url, image.path]
+            );
+          }
+        }
+    
+        // Delete existing tags for this listing
+        await query('DELETE FROM listing_tags WHERE listing_id = $1', [listingId]);
+    
+        // Insert new tags
+        if (tags && tags.length > 0) {
+          for (const tag of tags) {
+            // First check if the tag exists
+            const tagResult = await query('SELECT * FROM tags WHERE name = $1', [tag]);
+            let tagId;
+    
+            if (tagResult.rows.length > 0) {
+              // Tag exists, use its ID
+              tagId = tagResult.rows[0].tag_id;
+            } else {
+              // Tag doesn't exist, create it
+              const newTagResult = await query(
+                'INSERT INTO tags (name) VALUES ($1) RETURNING tag_id',
+                [tag]
+              );
+              tagId = newTagResult.rows[0].tag_id;
+            }
+    
+            // Link tag to listing
+            await query(
+              'INSERT INTO listing_tags (listing_id, tag_id) VALUES ($1, $2)',
+              [listingId, tagId]
+            );
+          }
+        }
+    
+        // Fetch the updated listing with its images and tags
+        const updatedListing = await query(
+          'SELECT * FROM listings WHERE listing_id = $1',
+          [listingId]
+        );
+    
+        const updatedImages = await query(
+          'SELECT url, cloudinary_id as path FROM images WHERE listing_id = $1',
+          [listingId]
+        );
+    
+        const updatedTags = await query(
+          `SELECT t.name 
+           FROM tags t 
+           JOIN listing_tags lt ON t.tag_id = lt.tag_id 
+           WHERE lt.listing_id = $1`,
+          [listingId]
+        );
+    
+        // Combine all data for response
+        const responseData = {
+          ...updatedListing.rows[0],
+          images: updatedImages.rows,
+          tags: updatedTags.rows.map(tag => tag.name)
+        };
+    
+        res.status(200).json(responseData);
+      } catch (error) {
+        console.error('Error updating listing:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+
     // Send success response
     res.status(201).json({ message: 'Listing created successfully', listingId });
   } catch (err) {
@@ -351,26 +464,113 @@ app.get('/listings_with_user_and_images', async (req, res) => {
 
 
 
-// Get listings by user ID
-app.get('/listings/user/:userId', async (req, res) => {
+// Get user's wishlist
+app.get('/wishlist/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
     
-    // Validate that userId is a number
-    if (isNaN(parseInt(userId))) {
-      return res.status(400).json({ message: 'Invalid user ID format' });
-    }
-    
-    // Query to get all listings for a specific user
-    const result = await query(
-      'SELECT * FROM public.listings WHERE user_id = $1 ORDER BY created_at DESC',
+    // Check if user has a wishlist
+    const wishlistResult = await query(
+      'SELECT * FROM wishlists WHERE user_id = $1',
       [userId]
     );
     
-    res.json({ listings: result.rows });
-  } catch (err) {
-    console.error('Error fetching user listings:', err);
-    res.status(500).json({ message: 'Internal Server Error' });
+    if (wishlistResult.rows.length === 0) {
+      // Create a new wishlist for the user
+      await query(
+        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2)',
+        [userId, []]
+      );
+      
+      return res.json({ products: [] });
+    }
+    
+    // Return the existing wishlist
+    res.json(wishlistResult.rows[0]);
+  } catch (error) {
+    console.error('Error fetching wishlist:', error);
+    res.status(500).json({ message: 'Error fetching wishlist' });
+  }
+});
+
+// Add item to wishlist
+app.post('/wishlist/:userId/add', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { item } = req.body;
+    
+    if (!item) {
+      return res.status(400).json({ message: 'Item name is required' });
+    }
+    
+    // Check if user has a wishlist
+    const wishlistResult = await query(
+      'SELECT * FROM wishlists WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (wishlistResult.rows.length === 0) {
+      // Create a new wishlist with the item
+      await query(
+        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2)',
+        [userId, [item]]
+      );
+    } else {
+      // Add item to existing wishlist
+      const currentProducts = wishlistResult.rows[0].products || [];
+      
+      // Check if item already exists
+      if (!currentProducts.includes(item)) {
+        const updatedProducts = [...currentProducts, item];
+        
+        await query(
+          'UPDATE wishlists SET products = $1 WHERE user_id = $2',
+          [updatedProducts, userId]
+        );
+      }
+    }
+    
+    res.status(201).json({ message: 'Item added to wishlist' });
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    res.status(500).json({ message: 'Error adding to wishlist' });
+  }
+});
+
+// Remove item from wishlist
+app.delete('/wishlist/:userId/remove', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { item } = req.body;
+    
+    if (!item) {
+      return res.status(400).json({ message: 'Item name is required' });
+    }
+    
+    // Get current wishlist
+    const wishlistResult = await query(
+      'SELECT * FROM wishlists WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (wishlistResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Wishlist not found' });
+    }
+    
+    // Remove item from products array
+    const currentProducts = wishlistResult.rows[0].products || [];
+    const updatedProducts = currentProducts.filter(product => product !== item);
+    
+    // Update wishlist
+    await query(
+      'UPDATE wishlists SET products = $1 WHERE user_id = $2',
+      [updatedProducts, userId]
+    );
+    
+    res.json({ message: 'Item removed from wishlist' });
+  } catch (error) {
+    console.error('Error removing from wishlist:', error);
+    res.status(500).json({ message: 'Error removing from wishlist' });
   }
 });
 

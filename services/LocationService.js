@@ -12,7 +12,7 @@ const API_URL = Constants.expoConfig.extra.API_URL;
 TaskManager.defineTask(LOCATION_TRACKING, async ({ data, error }) => {
   if (error) {
     console.error('Location tracking task error:', error);
-    return BackgroundFetch.BackgroundFetchResult.Failed;
+    return BackgroundFetch.BackgroundFetchResult.FAILED;  // Changed from BackgroundFetch.Result.FAILED
   }
   
   if (data) {
@@ -28,11 +28,11 @@ TaskManager.defineTask(LOCATION_TRACKING, async ({ data, error }) => {
       console.log(`Accuracy: ${location.coords.accuracy} meters`);
       console.log('====================================');
       
-      return BackgroundFetch.BackgroundFetchResult.NewData;
+      return BackgroundFetch.BackgroundFetchResult.NEW_DATA;  // Changed from BackgroundFetch.Result.NEW_DATA
     }
   }
   
-  return BackgroundFetch.BackgroundFetchResult.NoData;
+  return BackgroundFetch.BackgroundFetchResult.NO_DATA;  // Changed from BackgroundFetch.Result.NO_DATA
 });
 
 // Helper function to get user ID (implement based on your auth system)
