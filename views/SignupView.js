@@ -52,7 +52,7 @@ export default function SignupView({ navigation }) {
     }
 
     try {
-      const response = await axios.post('http://192.168.100.233:3000/signup', {
+      const response = await axios.post('http://192.168.0.101:3000/signup', {
         email,
         username,
         password,

@@ -34,14 +34,32 @@ const Footer = ({ isSeller }) => {
         <Text style={styles.footerText}>Home</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate(currentRole === 'seller' ? 'UploadItem' : 'Wishlist')}>
-        <Ionicons name={currentRole === 'seller' ? "cloud-upload-outline" : "bag-outline"} size={25} color="#1A434E" />
-        <Text style={styles.footerText}>{currentRole === 'seller' ? 'Upload Item' : 'Wishlist'}</Text>
+      <TouchableOpacity 
+        style={styles.footerItem} 
+        onPress={() => navigation.navigate(currentRole === 'seller' ? 'Inventory' : 'Wishlist')}
+      >
+        <Ionicons 
+          name={currentRole === 'seller' ? "layers-outline" : "bag-outline"} 
+          size={25} 
+          color="#1A434E" 
+        />
+        <Text style={styles.footerText}>
+          {currentRole === 'seller' ? 'Inventory' : 'Wishlist'}
+        </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('chatbot')}>
-        <MaterialIcons name="smart-toy" size={24} color="#1A434E" />
-        <Text style={styles.footerText}>Chatbot</Text>
+      <TouchableOpacity 
+        style={styles.footerItem} 
+        onPress={() => navigation.navigate(currentRole === 'seller' ? 'UploadItem' : 'chatbot')}
+      >
+        {currentRole === 'seller' ? (
+          <Ionicons name="cloud-upload-outline" size={25} color="#1A434E" />
+        ) : (
+          <MaterialIcons name="smart-toy" size={24} color="#1A434E" />
+        )}
+        <Text style={styles.footerText}>
+          {currentRole === 'seller' ? 'Upload Item' : 'Chatbot'}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.footerItem} onPress={() => navigation.navigate('Profile')}>

@@ -12,20 +12,38 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Online Thrift Store to use your location to find nearby items.",
+          "locationAlwaysPermission": "Allow Online Thrift Store to use your location in the background to find nearby items.",
+          "locationWhenInUsePermission": "Allow Online Thrift Store to use your location when the app is open."
+        }
+      ]
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "fetch"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "API_URL": "http://192.168.100.233:3000",
+      "API_URL": "http://192.168.0.101:3000",
       "CLOUD_NAME": "dr5gfm2nh"
     }
   }

@@ -6,6 +6,8 @@ import SideMenu from './SideMenu';
 import Footer from './FooterView';
 import useLocation from '../hooks/userLocation'; // Import useLocation hook
 import axios from "axios";
+// Import the location service
+import { startLocationTracking, stopLocationTracking, isLocationTrackingEnabled, getCurrentLocationAndLog } from '../services/LocationService';
 
 
 const screenWidth = Dimensions.get('window').width;
@@ -32,43 +34,7 @@ const WishlistView = ({ navigation }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
 
-  const [showLocation, setShowLocation] = useState(false); // Control visibility
-  const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
-  const [matchedSellers, setMatchedSellers] = useState([]);
-  const [nearbySellers, setNearbySellers] = useState([]); // Sellers within proximity
-  const [isLoading, setIsLoading] = useState(true); // Loading state for button
-
-  const handleGetLocation = async () => {
-    await getUserLocation(); // Fetch location
-    setShowLocation(true);   // Show location view
-  };
-
-  useEffect(() => {
-    const initializePage = async () => {
-      await handleGetLocation(); // Get user's current location
-      await matchAndGeocodeSellers(); // Match sellers and geocode addresses
-      setIsLoading(false); // Enable the button after loading
-    };
-
-    initializePage(); // Call the initialization function
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  const findNearbySellers = () => {
-    if (!latitude || !longitude || matchedSellers.length === 0) return;
-
-    const nearby = matchedSellers.filter((seller) => {
-      const distance = haversineDistance(
-        parseFloat(latitude),
-        parseFloat(longitude),
-        seller.lat,
-        seller.lon
-      );
-      return distance <= 5; // Check if within 5km
-    });
-
-    setNearbySellers(nearby); // Update nearby sellers
-  };
-
+  // Add the toggleMenu function here, inside the component
   const toggleMenu = () => {
     if (isMenuOpen) {
       Animated.timing(slideAnim, {
@@ -85,6 +51,38 @@ const WishlistView = ({ navigation }) => {
       }).start();
     }
   };
+
+  const [showLocation, setShowLocation] = useState(false); // Control visibility
+  const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
+  const [matchedSellers, setMatchedSellers] = useState([]);
+  const [nearbySellers, setNearbySellers] = useState([]); // Sellers within proximity
+  const [isLoading, setIsLoading] = useState(true); // Loading state for button
+  const [isTracking, setIsTracking] = useState(false);
+
+  // Check if tracking is enabled on component mount
+  useEffect(() => {
+    const checkTrackingStatus = async () => {
+      const trackingEnabled = await isLocationTrackingEnabled();
+      setIsTracking(trackingEnabled);
+      
+      // Get and log the current location when component mounts
+      await getCurrentLocationAndLog();
+    };
+    
+    checkTrackingStatus();
+  }, []);
+
+  // Toggle location tracking
+  const toggleLocationTracking = async (value) => {
+    if (value) {
+      const started = await startLocationTracking();
+      setIsTracking(started);
+    } else {
+      await stopLocationTracking();
+      setIsTracking(false);
+    }
+  };
+
   const [keywords, setKeywords] = useState({});
   const wishlistItems = [
     "I want a coffee table",
@@ -98,7 +96,7 @@ const WishlistView = ({ navigation }) => {
   useEffect(() => {
     const fetchKeywords = async () => {
       try {
-        const API_URL = "http://192.168.10.7:3000/extract-keywords"; // Use for Android Emulator
+        const API_URL = "http://192.168.0.101/extract-keywords"; // Use for Android Emulator
         // Use "http://192.168.1.10:3000/extract-keywords" for a real device
 
         console.log("Sending request to:", API_URL);
@@ -431,6 +429,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  trackingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#E6F7FF',
+  },
+  trackingText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
   },
 });
 

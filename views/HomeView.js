@@ -102,7 +102,11 @@ const OnlineThriftStore = ({ route, navigation }) => {
         }
     };
     const renderProduct = ({ item }) => (
-        <View style={styles.productCard}>
+        <TouchableOpacity 
+            style={styles.productCard} 
+            key={item.id}
+            onPress={() => navigation.navigate('ViewProduct', { product: item })}
+        >
             <Image source={{ uri: item.image_url }} style={styles.productImage} />
             <View style={styles.productInfo}>
                 <Text style={styles.productName}>{item.name}</Text>
@@ -119,7 +123,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                 </View>
                 <Text style={styles.productPrice}>{"PKR "}{item.price}</Text>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
 
@@ -152,42 +156,48 @@ const OnlineThriftStore = ({ route, navigation }) => {
 
 
                 <Text style={styles.sectionTitle}>For You</Text>
+                // In the ScrollView section where you render products
                 <ScrollView 
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.productList}
                 >
                     {data.map((item) => (
-                        <View  key={item.id}>
+                        <TouchableOpacity 
+                            key={item.id} 
+                            onPress={() => navigation.navigate('ViewProduct', { product: item })}
+                        >
                             {renderProduct({ item })}
-                        </View>
+                        </TouchableOpacity>
                     ))}
                 </ScrollView>
                 <Text style={styles.sectionTitle}>Recently Added</Text>
+                // In the Recently Added section
                 <ScrollView contentContainerStyle={styles.recentProductList}>
-    {/* Loop through products and render in two columns */}
-    {data.map((item, index) => (
-        <View
-            key={item.id}
-            style={[styles.recentProductCard, index % 2 === 1 && styles.secondColumn]} // To create two columns
-        >
-            <Image source={{ uri: item.image_url }} style={styles.recentProductImage} />
-            <Text style={styles.recentProductName}>{item.name}</Text>
-            <Text style={styles.recentProductLocation}>
-                <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
-            </Text>
-            <View style={styles.recentProductActions}>
-                <View style={styles.circleicon}>
-                    <Ionicons name="cart-outline" size={16} color="black" />
-                </View>
-                <View style={styles.circleicon}>
-                    <Ionicons name="heart-outline" size={16} color="black" />
-                </View>
-            </View>
-            <Text style={styles.recentProductPrice}>{"PKR "}{item.price}</Text>
-        </View>
-    ))}
-</ScrollView>
+                    {/* Loop through products and render in two columns */}
+                    {data.map((item, index) => (
+                        <TouchableOpacity
+                            key={item.id}
+                            style={[styles.recentProductCard, index % 2 === 1 && styles.secondColumn]}
+                            onPress={() => navigation.navigate('ViewProduct', { product: item })}
+                        >
+                            <Image source={{ uri: item.image_url }} style={styles.recentProductImage} />
+                            <Text style={styles.recentProductName}>{item.name}</Text>
+                            <Text style={styles.recentProductLocation}>
+                                <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
+                            </Text>
+                            <View style={styles.recentProductActions}>
+                                <View style={styles.circleicon}>
+                                    <Ionicons name="cart-outline" size={16} color="black" />
+                                </View>
+                                <View style={styles.circleicon}>
+                                    <Ionicons name="heart-outline" size={16} color="black" />
+                                </View>
+                            </View>
+                            <Text style={styles.recentProductPrice}>{"PKR "}{item.price}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
 
 
             </ScrollView>

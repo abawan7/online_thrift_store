@@ -12,30 +12,44 @@ import ChatbotView from './views/ChatbotView';
 import ProfileView from './views/ProfileView';
 import EditProfileView from './views/EditProfileView';
 import UploadItemView from './views/UploadItem';
-import AddLocation from './views/AddLocationView';  // Correct import path for AddLocationView.js
+import AddLocation from './views/AddLocationView';
 import Constants from 'expo-constants';
+import { initializeLocationTracking } from './services/AppLocationManager';
+import ViewProductScreen from './views/ViewProductScreen';
+import SellerProfileView from './views/SellerProfileView';
+import InventoryView from './views/InventoryView';
 
 const Stack = createStackNavigator();
 
 export default function AppNavigator() {
     const [data, setData] = useState([]);
-    const [loading, setLoading] = useState(true); // Track loading state
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Fetch data
         const fetchData = async () => {
             try {
                 const response = await fetch(`${Constants.expoConfig.extra.API_URL}/listings_with_user_and_images`);
                 const result = await response.json();
                 console.log("result : ", result);
-                setData(result);  // Set the fetched data to state
-                setLoading(false); // Set loading to false once data is fetched
+                setData(result);
+                setLoading(false);
             } catch (error) {
                 console.error(error);
-                setLoading(false); // In case of an error, stop loading
+                setLoading(false);
             }
         };
 
-        fetchData();  // Fetch data on initial load
+        fetchData();
+        
+        // Initialize location tracking when app starts
+        initializeLocationTracking().then(success => {
+            if (success) {
+                console.log('Location tracking initialized successfully');
+            } else {
+                console.warn('Failed to initialize location tracking');
+            }
+        });
     }, []);
 
     return (
@@ -60,8 +74,10 @@ export default function AppNavigator() {
                     initialParams={{ data: data, loading: loading }} // Ensure this is passed correctly
                 />
 
-
+                <Stack.Screen name="ViewProduct" component={ViewProductScreen} />
+                <Stack.Screen name="SellerProfile" component={SellerProfileView} />
                 <Stack.Screen name="Wishlist" component={WishtListView} />
+                <Stack.Screen name="Inventory" component={InventoryView} />
                 <Stack.Screen name="chatbot" component={ChatbotView} />
                 <Stack.Screen
                     name="NotificationScreen"
