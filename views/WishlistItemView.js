@@ -103,12 +103,32 @@ const WishlistView = ({ navigation }) => {
             }
           );
           
-          setWishlistItems(response.data.wishlist);
+          // Check the structure of the response data
+          console.log('Wishlist response:', response.data);
+          
+          // Handle different response formats
+          let wishlistData = [];
+          if (response.data.products) {
+            // If the response has a products array, use it
+            wishlistData = response.data.products.map((item, index) => ({
+              wishlist_id: index + 1,
+              item_description: item,
+              created_at: new Date().toISOString()
+            }));
+          } else if (response.data.wishlist) {
+            // If the response has a wishlist array, use it
+            wishlistData = response.data.wishlist;
+          } else if (Array.isArray(response.data)) {
+            // If the response is an array, use it directly
+            wishlistData = response.data;
+          }
+          
+          setWishlistItems(wishlistData);
           setLoading(false);
           
           // Extract keywords for each wishlist item
-          if (response.data.wishlist.length > 0) {
-            extractKeywords(response.data.wishlist.map(item => item.item_description));
+          if (wishlistData.length > 0) {
+            extractKeywords(wishlistData.map(item => item.item_description));
           }
         }
       } catch (error) {
@@ -144,10 +164,21 @@ const WishlistView = ({ navigation }) => {
     } catch (error) {
       console.error("Error extracting keywords:", error);
       
-      // Fallback keywords if API fails
+      // Enhanced fallback keyword extraction if API fails
       const fallbackKeywords = {};
       items.forEach(item => {
-        fallbackKeywords[item] = item.split(' ').filter(word => word.length > 3);
+        if (!item) return;
+        
+        // Split the item description into words
+        const words = item.toLowerCase().split(/\s+/);
+        
+        // Filter out common words and keep meaningful keywords
+        const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
+        const filteredWords = words.filter(word => 
+          word.length > 3 && !commonWords.includes(word)
+        );
+        
+        fallbackKeywords[item] = filteredWords;
       });
       
       setKeywords(fallbackKeywords);
@@ -261,34 +292,95 @@ const WishlistView = ({ navigation }) => {
   // Add a new wishlist item
   const addWishlistItem = async (description) => {
     try {
+      if (!description || description.trim() === '') {
+        Alert.alert('Error', 'Please enter a valid item description');
+        return;
+      }
+      
       const token = await AsyncStorage.getItem('token');
       
-      await axios.post(
-        `${Constants.expoConfig.extra.API_URL}/wishlist`,
-        {
-          user_id: userId,
-          item_description: description
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      // Extract keywords locally first
+      const itemWords = description.toLowerCase().split(/\s+/);
+      const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
+      const extractedKeywords = itemWords.filter(word => 
+        word.length > 3 && !commonWords.includes(word)
       );
       
-      // Refresh wishlist items
-      const response = await axios.get(
-        `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      console.log('Locally extracted keywords:', extractedKeywords);
       
-      setWishlistItems(response.data.wishlist);
+      // Try to add the item to the wishlist
+      try {
+        await axios.post(
+          `${Constants.expoConfig.extra.API_URL}/wishlist`,
+          {
+            user_id: userId,
+            item_description: description,
+            keywords: extractedKeywords
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+      } catch (postError) {
+        console.error('Error with POST /wishlist:', postError);
+        
+        // Try the alternative endpoint if the first one fails
+        await axios.post(
+          `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}/add`,
+          {
+            item: description
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+      }
       
-      // Extract keywords for the new item
-      const updatedItems = [...wishlistItems, { item_description: description }];
-      extractKeywords(updatedItems.map(item => item.item_description));
+      // Add the item locally to the state
+      const newItem = {
+        wishlist_id: Date.now(), // Temporary ID
+        item_description: description,
+        created_at: new Date().toISOString()
+      };
+      
+      const updatedItems = [...wishlistItems, newItem];
+      setWishlistItems(updatedItems);
+      
+      // Update keywords
+      const updatedKeywords = {...keywords};
+      updatedKeywords[description] = extractedKeywords;
+      setKeywords(updatedKeywords);
       
       Alert.alert('Success', 'Wishlist item added successfully!');
+      
+      // Try to refresh the wishlist from the server
+      try {
+        const response = await axios.get(
+          `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        
+        // Handle different response formats
+        let wishlistData = [];
+        if (response.data.products) {
+          wishlistData = response.data.products.map((item, index) => ({
+            wishlist_id: index + 1,
+            item_description: item,
+            created_at: new Date().toISOString()
+          }));
+        } else if (response.data.wishlist) {
+          wishlistData = response.data.wishlist;
+        } else if (Array.isArray(response.data)) {
+          wishlistData = response.data;
+        }
+        
+        setWishlistItems(wishlistData);
+      } catch (refreshError) {
+        console.error('Error refreshing wishlist:', refreshError);
+        // Keep the locally updated state
+      }
     } catch (error) {
       console.error('Error adding wishlist item:', error);
       Alert.alert('Error', 'Failed to add wishlist item. Please try again.');

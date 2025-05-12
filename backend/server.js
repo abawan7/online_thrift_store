@@ -446,7 +446,51 @@ app.get('/listings_with_user_and_images', async (req, res) => {
 
 
 
-// Get user's wishlist
+// Add item to wishlist - New endpoint that matches your API call format
+app.post('/wishlist', async (req, res) => {
+  try {
+    const { user_id, item_description } = req.body;
+    
+    // Extract keywords from item_description (simplified example)
+    const keywords = item_description.split(' ')
+      .filter(word => word.length > 3)
+      .map(word => word.toLowerCase());
+    
+    // Check if user has a wishlist
+    const wishlistResult = await query(
+      'SELECT * FROM wishlists WHERE user_id = $1',
+      [user_id]
+    );
+    
+    if (wishlistResult.rows.length === 0) {
+      // Create a new wishlist with the item
+      await query(
+        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2)',
+        [user_id, [item_description]]
+      );
+    } else {
+      // Add item to existing wishlist
+      const currentProducts = wishlistResult.rows[0].products || [];
+      
+      // Check if item already exists
+      if (!currentProducts.includes(item_description)) {
+        const updatedProducts = [...currentProducts, item_description];
+        
+        await query(
+          'UPDATE wishlists SET products = $1 WHERE user_id = $2',
+          [updatedProducts, user_id]
+        );
+      }
+    }
+    
+    res.status(201).json({ message: 'Item added to wishlist' });
+  } catch (error) {
+    console.error('Error adding to wishlist:', error);
+    res.status(500).json({ message: 'Error adding to wishlist' });
+  }
+});
+
+// Get user's wishlist - Keep this endpoint as it matches your API call
 app.get('/wishlist/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
