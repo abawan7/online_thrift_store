@@ -33,14 +33,26 @@ const SideMenu = ({ slideAnim, toggleMenu, menuWidth }) => {
                 <Text style={styles.menuText}>Notification</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.menuItem} onPress={() => WishlistController.index(navigation)}>
-                <Ionicons name="bag-outline" size={20} color="white" />
-                <Text style={styles.menuText}>Wishlist Items</Text>
+            <TouchableOpacity 
+                style={styles.menuItem} 
+                onPress={() => {
+                    navigation.navigate('Wishlist');
+                    toggleMenu();
+                }}
+            >
+                <Ionicons name="heart-outline" size={24} color="#fff" />
+                <Text style={styles.menuItemText}>Wishlist</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="heart-outline" size={20} color="white" />
-                <Text style={styles.menuText}>Favourite</Text>
+            <TouchableOpacity 
+                style={styles.menuItem} 
+                onPress={() => {
+                    navigation.navigate('Chats');
+                    toggleMenu();
+                }}
+            >
+                <Ionicons name="chatbubbles-outline" size={24} color="#fff" />
+                <Text style={styles.menuItemText}>Messages</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.menuItem}>
@@ -97,6 +109,11 @@ const styles = StyleSheet.create({
         borderBottomColor: 'rgba(255, 255, 255, 0.2)',
     },
     menuText: {
+        marginLeft: 10,
+        fontSize: 16,
+        color: 'white',
+    },
+    menuItemText: {
         marginLeft: 10,
         fontSize: 16,
         color: 'white',

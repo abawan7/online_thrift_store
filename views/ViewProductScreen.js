@@ -1,14 +1,127 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Header from './Header';
 import Footer from './FooterView';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import Constants from 'expo-constants';
 
 const { width } = Dimensions.get('window');
 
 const ViewProductScreen = ({ route, navigation }) => {
   // Get the product data passed from the navigation params
   const { product } = route.params;
+  const [userId, setUserId] = useState(null);
+  const [token, setToken] = useState(null);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      const storedUserId = await AsyncStorage.getItem('user_id');
+      const storedToken = await AsyncStorage.getItem('token');
+      setUserId(storedUserId);
+      setToken(storedToken);
+    };
+    getUserId();
+  }, []);
+
+  const handleChatPress = async () => {
+    try {
+      // Log the entire product object to see its structure
+      console.log('Full product data:', JSON.stringify(product, null, 2));
+      console.log('User ID:', userId);
+      console.log('Token:', token);
+      console.log('API URL:', Constants.expoConfig.extra.API_URL);
+      console.log('Seller Email:', product.user_email);
+
+      // First, let's verify the API URL is correct
+      const apiUrl = `${Constants.expoConfig.extra.API_URL}/api/getUserProfile`;
+      console.log('Making request to:', apiUrl);
+
+      // Test the API connection first
+      try {
+        const testResponse = await axios.get(`${Constants.expoConfig.extra.API_URL}/test`);
+        console.log('Test response:', testResponse.data);
+      } catch (testError) {
+        console.error('Test request failed:', testError.message);
+        Alert.alert('Error', 'Could not connect to the server. Please try again.');
+        return;
+      }
+
+      // Fetch seller's ID using their email
+      const sellerResponse = await axios.get(
+        apiUrl,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          params: {
+            email: product.user_email
+          }
+        }
+      );
+
+      console.log('Seller Response:', JSON.stringify(sellerResponse.data, null, 2));
+
+      if (!sellerResponse.data || !sellerResponse.data.user || !sellerResponse.data.user.user_id) {
+        console.error('Could not fetch seller ID. Response:', sellerResponse.data);
+        Alert.alert('Error', 'Could not identify the seller. Please try again.');
+        return;
+      }
+
+      const sellerId = sellerResponse.data.user.user_id;
+      const sellerName = sellerResponse.data.user.name;
+      console.log('Seller ID:', sellerId);
+      console.log('Seller Name:', sellerName);
+
+      // Ensure buyer_id is a number
+      const numericBuyerId = parseInt(userId, 10);
+      if (isNaN(numericBuyerId)) {
+        console.error('Invalid buyer ID:', userId);
+        Alert.alert('Error', 'Invalid user ID. Please try logging in again.');
+        return;
+      }
+
+      const conversationData = {
+        listing_id: parseInt(product.listing_id, 10),
+        seller_id: parseInt(sellerId, 10),
+        buyer_id: numericBuyerId
+      };
+
+      console.log('Creating conversation with data:', JSON.stringify(conversationData, null, 2));
+
+      // Create a new conversation if it doesn't exist
+      const response = await axios.post(
+        `${Constants.expoConfig.extra.API_URL}/api/conversations`,
+        conversationData,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Conversation created:', JSON.stringify(response.data, null, 2));
+
+      navigation.navigate('Chat', {
+        conversationId: response.data.conversation_id,
+        sellerId: sellerId,
+        sellerName: sellerName,
+        listingId: product.listing_id
+      });
+    } catch (error) {
+      console.error('Full error object:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+      }
+      console.error('Error message:', error.message);
+      Alert.alert('Error', 'Could not start conversation. Please try again.');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -112,6 +225,20 @@ const ViewProductScreen = ({ route, navigation }) => {
           </View>
         </View>
       </ScrollView>
+      
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, styles.chatButton]}
+          onPress={handleChatPress}
+        >
+          <Ionicons name="chatbubbles-outline" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Chat with Seller</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.contactButton}>
+          <Ionicons name="call-outline" size={20} color="#333" />
+        </TouchableOpacity>
+      </View>
       
       <Footer />
     </View>
@@ -265,6 +392,32 @@ const styles = StyleSheet.create({
   seeMoreText: {
     color: '#1A434E',
     marginTop: 5,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 15,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  chatButton: {
+    backgroundColor: '#1A434E',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });
 

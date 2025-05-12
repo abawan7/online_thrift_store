@@ -19,6 +19,8 @@ import ViewProductScreen from './views/ViewProductScreen';
 import SellerProfileView from './views/SellerProfileView';
 import InventoryView from './views/InventoryView';
 import EditItemView from './views/EditItem';
+import ChatView from './views/ChatView';
+import ChatsView from './views/ChatsView';
 
 const Stack = createStackNavigator();
 
@@ -106,6 +108,8 @@ export default function AppNavigator() {
                     initialParams={{ refreshData: refreshData }}
                 />
                 <Stack.Screen name="AddLocation" component={AddLocation} />
+                <Stack.Screen name="Chats" component={ChatsView} />
+                <Stack.Screen name="Chat" component={ChatView} />
             </Stack.Navigator>
         </NavigationContainer>
     );

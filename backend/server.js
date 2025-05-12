@@ -4,9 +4,18 @@ const { query } = require('./db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); // Import jsonwebtoken here
 require('dotenv').config();
+const http = require('http');
+const socketIo = require('socket.io');
 
 const app = express();
 const port = 3000;
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 const secretKey = process.env.JWT_SECRET; // Ensure JWT secret is in your .env file
 
@@ -146,27 +155,104 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Test endpoint to verify server is running
+app.get('/test', (req, res) => {
+  console.log('Test endpoint called');
+  res.json({ message: 'Server is running' });
+});
+
 // Get User Profile Route
-app.get('/getUserProfile', async (req, res) => {
+app.get('/api/getUserProfile', async (req, res) => {
   try {
-    // Extract token from the Authorization header
+    console.log('getUserProfile endpoint called');
+    console.log('Query parameters:', req.query);
+    console.log('Headers:', req.headers);
+
+    const { email } = req.query;
     const token = req.headers.authorization?.split(' ')[1];
 
+    console.log('Email from query:', email);
+    console.log('Token from headers:', token ? 'Present' : 'Missing');
+
+    // If email is provided, use it to find the user
+    if (email) {
+      console.log('Fetching profile for email:', email);
+      const result = await query(
+        'SELECT user_id, name, email, phone, access_level FROM public.users WHERE email = $1',
+        [email]
+      );
+
+      console.log('Database query result:', result.rows);
+
+      if (result.rows.length === 0) {
+        console.log('No user found for email:', email);
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      console.log('Found user by email:', result.rows[0]);
+      return res.json({ user: result.rows[0] });
+    }
+
+    // If no email provided, use token to get user profile
     if (!token) {
+      console.log('No token provided');
       return res.status(401).json({ message: 'Authorization token is required' });
     }
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Decoded token:', decoded);
 
     // Get user profile from the database using the decoded user_id
-    const result = await query('SELECT user_id, name, email, phone, access_level FROM public.users WHERE user_id = $1', [decoded.user_id]);
+    const result = await query(
+      'SELECT user_id, name, email, phone, access_level FROM public.users WHERE user_id = $1',
+      [decoded.user_id]
+    );
+
+    console.log('Database query result for user_id:', result.rows);
 
     if (result.rows.length === 0) {
+      console.log('No user found for user_id:', decoded.user_id);
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Send user profile data
+    console.log('Sending user profile:', result.rows[0]);
+    res.json({ user: result.rows[0] });
+
+  } catch (err) {
+    console.error('Error in getUserProfile:', err);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Get User Profile by Email
+app.get('/users/profile', async (req, res) => {
+  try {
+    const { email } = req.query;
+    console.log('Fetching profile for email:', email);
+    
+    if (!email) {
+      console.log('Email is missing from request');
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Get user profile from the database using the email
+    const result = await query(
+      'SELECT user_id, name, email, phone, access_level FROM public.users WHERE email = $1',
+      [email]
+    );
+
+    console.log('Query result:', result.rows);
+
+    if (result.rows.length === 0) {
+      console.log('No user found for email:', email);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Send user profile data
+    console.log('Sending user profile:', result.rows[0]);
     res.json({ user: result.rows[0] });
 
   } catch (err) {
@@ -599,19 +685,255 @@ app.delete('/wishlist/:userId/remove', async (req, res) => {
   }
 });
 
+// WebSocket connection handling
+io.on('connection', (socket) => {
+  console.log('New client connected');
 
+  socket.on('join_room', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`User joined room: ${conversationId}`);
+  });
 
+  socket.on('leave_room', (conversationId) => {
+    socket.leave(conversationId);
+    console.log(`User left room: ${conversationId}`);
+  });
+
+  socket.on('send_message', async (data) => {
+    try {
+      const { conversationId, content, senderId } = data;
+      
+      // Save message to database
+      const result = await query(
+        'INSERT INTO messages (conversation_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *',
+        [conversationId, senderId, content]
+      );
+
+      const message = result.rows[0];
+      
+      // Broadcast message to all clients in the conversation room
+      io.to(conversationId).emit('receive_message', message);
+    } catch (error) {
+      console.error('Error saving message:', error);
+      socket.emit('error', { message: 'Error saving message' });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+});
 
 // Listen on the specified port
 // At the bottom of your server.js file
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
 // Add this temporary route to test if the endpoint is accessible
 app.get('/listing/:id', async (req, res) => {
   res.status(200).json({ message: 'Endpoint is accessible', id: req.params.id });
+});
+
+// Create a new conversation
+app.post('/api/conversations', async (req, res) => {
+  try {
+    const { listing_id, seller_id, buyer_id } = req.body;
+    console.log('Received conversation creation request:', { listing_id, seller_id, buyer_id });
+
+    // Validate required fields
+    if (!listing_id || !seller_id || !buyer_id) {
+      console.log('Missing required fields:', { listing_id, seller_id, buyer_id });
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Check if listing exists
+    const listingCheck = await query(
+      'SELECT * FROM listings WHERE listing_id = $1',
+      [listing_id]
+    );
+    console.log('Listing check result:', listingCheck.rows);
+
+    if (listingCheck.rows.length === 0) {
+      console.log('Listing not found:', listing_id);
+      return res.status(404).json({ message: 'Listing not found' });
+    }
+
+    // Check if users exist
+    const sellerCheck = await query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [seller_id]
+    );
+    console.log('Seller check result:', sellerCheck.rows);
+
+    const buyerCheck = await query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [buyer_id]
+    );
+    console.log('Buyer check result:', buyerCheck.rows);
+
+    if (sellerCheck.rows.length === 0 || buyerCheck.rows.length === 0) {
+      console.log('User not found:', { seller_id, buyer_id });
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if conversation already exists
+    const existingConversation = await query(
+      'SELECT * FROM conversations WHERE listing_id = $1 AND seller_id = $2 AND buyer_id = $3',
+      [listing_id, seller_id, buyer_id]
+    );
+    console.log('Existing conversation check:', existingConversation.rows);
+
+    if (existingConversation.rows.length > 0) {
+      console.log('Found existing conversation:', existingConversation.rows[0]);
+      return res.json(existingConversation.rows[0]);
+    }
+
+    // Create new conversation
+    const result = await query(
+      'INSERT INTO conversations (listing_id, seller_id, buyer_id) VALUES ($1, $2, $3) RETURNING *',
+      [listing_id, seller_id, buyer_id]
+    );
+
+    console.log('Created new conversation:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ message: 'Error creating conversation', error: error.message });
+  }
+});
+
+// Get all conversations for a user
+app.get('/api/conversations', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.user_id;
+
+    const result = await query(
+      `SELECT c.*, l.name as listing_name, l.price as listing_price,
+              CASE 
+                WHEN c.seller_id = $1 THEN u2.name
+                ELSE u1.name
+              END as other_user_name,
+              CASE 
+                WHEN c.seller_id = $1 THEN u2.user_id
+                ELSE u1.user_id
+              END as other_user_id
+       FROM conversations c
+       JOIN listings l ON c.listing_id = l.listing_id
+       JOIN users u1 ON c.seller_id = u1.user_id
+       JOIN users u2 ON c.buyer_id = u2.user_id
+       WHERE c.seller_id = $1 OR c.buyer_id = $1
+       ORDER BY c.created_at DESC`,
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    res.status(500).json({ message: 'Error fetching conversations' });
+  }
+});
+
+// Get messages for a conversation
+app.get('/api/messages/:conversationId', async (req, res) => {
+  try {
+    console.log('Received GET request to /api/messages/:conversationId');
+    console.log('Conversation ID:', req.params.conversationId);
+    console.log('Request headers:', req.headers);
+
+    const { conversationId } = req.params;
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      console.log('No token provided');
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.user_id;
+    console.log('Decoded user ID:', userId);
+
+    // Verify user is part of the conversation
+    const conversationCheck = await query(
+      'SELECT * FROM conversations WHERE conversation_id = $1 AND (seller_id = $2 OR buyer_id = $2)',
+      [conversationId, userId]
+    );
+
+    console.log('Conversation check result:', conversationCheck.rows);
+
+    if (conversationCheck.rows.length === 0) {
+      console.log('User not authorized to view these messages');
+      return res.status(403).json({ message: 'Not authorized to view these messages' });
+    }
+
+    const result = await query(
+      'SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC',
+      [conversationId]
+    );
+
+    console.log('Found messages:', result.rows.length);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ message: 'Error fetching messages', error: error.message });
+  }
+});
+
+// Create a new message
+app.post('/api/messages', async (req, res) => {
+  try {
+    console.log('Received POST request to /api/messages');
+    console.log('Request body:', req.body);
+    console.log('Request headers:', req.headers);
+
+    const { conversationId, content, senderId } = req.body;
+    console.log('Extracted data:', { conversationId, content, senderId });
+
+    // Validate required fields
+    if (!conversationId || !content || !senderId) {
+      console.log('Missing required fields:', { conversationId, content, senderId });
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Verify user is part of the conversation
+    const conversationCheck = await query(
+      'SELECT * FROM conversations WHERE conversation_id = $1 AND (seller_id = $2 OR buyer_id = $2)',
+      [conversationId, senderId]
+    );
+
+    console.log('Conversation check result:', conversationCheck.rows);
+
+    if (conversationCheck.rows.length === 0) {
+      console.log('User not authorized to send message in this conversation');
+      return res.status(403).json({ message: 'Not authorized to send message in this conversation' });
+    }
+
+    // Create new message
+    const result = await query(
+      'INSERT INTO messages (conversation_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *',
+      [conversationId, senderId, content]
+    );
+
+    console.log('Created new message:', result.rows[0]);
+    
+    // Emit the message through socket.io
+    io.to(conversationId).emit('receive_message', result.rows[0]);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating message:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ message: 'Error creating message', error: error.message });
+  }
 });
 
 
