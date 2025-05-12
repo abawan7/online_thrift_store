@@ -1,4 +1,4 @@
-import React, {useRef, useState,useEffect} from 'react';
+import React, {useRef, useState, useEffect} from 'react';
 import Header from './Header';
 import SideMenu from './SideMenu';
 import Footer from './FooterView';
@@ -84,6 +84,34 @@ const OnlineThriftStore = ({ route, navigation }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
     const { data, loading } = route.params || {};
+    const [filteredData, setFilteredData] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        // Initialize filtered data with all data
+        setFilteredData(data || []);
+    }, [data]);
+
+    const handleSearch = (text) => {
+        setSearchQuery(text);
+        
+        if (!text.trim()) {
+            // If search is empty, show all products
+            setFilteredData(data || []);
+            return;
+        }
+        
+        // Filter products based on search text
+        const filtered = data.filter(item => {
+            const itemName = item.name ? item.name.toLowerCase() : '';
+            const itemDescription = item.description ? item.description.toLowerCase() : '';
+            const searchText = text.toLowerCase();
+            
+            return itemName.includes(searchText) || itemDescription.includes(searchText);
+        });
+        
+        setFilteredData(filtered);
+    };
 
     const toggleMenu = () => {
         if (isMenuOpen) {
@@ -135,6 +163,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                 title="Online Thrift Store"
                 onMenuPress={toggleMenu}
                 onNotificationsPress={() => console.log('Notifications Pressed')}
+                onSearch={handleSearch}
             />
 
             {/* Side Menu */}
@@ -154,6 +183,12 @@ const OnlineThriftStore = ({ route, navigation }) => {
                     ))}
                 </ScrollView>
 
+                {/* Show search results count if searching */}
+                {searchQuery.trim() !== '' && (
+                    <Text style={styles.searchResults}>
+                        Found {filteredData.length} results for "{searchQuery}"
+                    </Text>
+                )}
 
                 <Text style={styles.sectionTitle}>For You</Text>
                 {/* In the ScrollView section where you render products */}
@@ -162,7 +197,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.productList}
                 >
-                    {data.map((item) => (
+                    {filteredData.map((item) => (
                         <TouchableOpacity 
                             key={item.id} 
                             onPress={() => navigation.navigate('ViewProduct', { product: item })}
@@ -171,37 +206,40 @@ const OnlineThriftStore = ({ route, navigation }) => {
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
-                <Text style={styles.sectionTitle}>Recently Added</Text>
-                {/* In the Recently Added section */}
-                <ScrollView contentContainerStyle={styles.recentProductList}>
-                    {/* Loop through products and render in two columns */}
-                    {data.map((item, index) => (
-                        <TouchableOpacity
-                            key={item.id}
-                            style={[styles.recentProductCard, index % 2 === 1 && styles.secondColumn]}
-                            onPress={() => navigation.navigate('ViewProduct', { product: item })}
-                        >
-                            <Image source={{ uri: item.image_url }} style={styles.recentProductImage} />
-                            <Text style={styles.recentProductName}>{item.name}</Text>
-                            <Text style={styles.recentProductLocation}>
-                                <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
-                            </Text>
-                            <View style={styles.recentProductActions}>
-                                <View style={styles.circleicon}>
-                                    <Ionicons name="cart-outline" size={16} color="black" />
-                                </View>
-                                <View style={styles.circleicon}>
-                                    <Ionicons name="heart-outline" size={16} color="black" />
-                                </View>
-                            </View>
-                            <Text style={styles.recentProductPrice}>{"PKR "}{item.price}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
+                
+                {/* Only show Recently Added section if not searching */}
+                {searchQuery.trim() === '' && (
+                    <>
+                        <Text style={styles.sectionTitle}>Recently Added</Text>
+                        <ScrollView contentContainerStyle={styles.recentProductList}>
+                            {/* Loop through products and render in two columns */}
+                            {filteredData.map((item, index) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    style={[styles.recentProductCard, index % 2 === 1 && styles.secondColumn]}
+                                    onPress={() => navigation.navigate('ViewProduct', { product: item })}
+                                >
+                                    <Image source={{ uri: item.image_url }} style={styles.recentProductImage} />
+                                    <Text style={styles.recentProductName}>{item.name}</Text>
+                                    <Text style={styles.recentProductLocation}>
+                                        <Ionicons name="location-outline" size={12} color="gray" /> {item.location}
+                                    </Text>
+                                    <View style={styles.recentProductActions}>
+                                        <View style={styles.circleicon}>
+                                            <Ionicons name="cart-outline" size={16} color="black" />
+                                        </View>
+                                        <View style={styles.circleicon}>
+                                            <Ionicons name="heart-outline" size={16} color="black" />
+                                        </View>
+                                    </View>
+                                    <Text style={styles.recentProductPrice}>{"PKR "}{item.price}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </>
+                )}
             </ScrollView>
-
-            {/* Footer */}
-           <Footer />
+            <Footer />
         </View>
     );
 };
