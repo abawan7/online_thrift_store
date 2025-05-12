@@ -167,7 +167,18 @@ const EditItemView = ({ route, navigation }) => {
         price: price,
       };
   
-      const response = await axios.put(`${Constants.expoConfig.extra.API_URL}/listing/${item.listing_id}`, listingData);
+      // Make sure item.listing_id exists and is correctly passed
+      if (!item || !item.listing_id) {
+        throw new Error('Listing ID is missing');
+      }
+  
+      console.log('Updating listing with ID:', item.listing_id);
+      console.log('API URL:', `${Constants.expoConfig.extra.API_URL}/listing/${item.listing_id}`);
+      
+      const response = await axios.put(
+        `${Constants.expoConfig.extra.API_URL}/listing/${item.listing_id}`, 
+        listingData
+      );
   
       Alert.alert('Success', 'Listing updated successfully!');
       console.log('Listing updated:', response.data);

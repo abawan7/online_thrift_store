@@ -11,7 +11,9 @@ const port = 3000;
 const secretKey = process.env.JWT_SECRET; // Ensure JWT secret is in your .env file
 
 // Middleware setup
+// Make sure these lines are at the top of your server.js file
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 // Sign-Up Route
@@ -290,124 +292,104 @@ app.post('/listing', async (req, res) => {
       }
     }
 
-    // Update a listing
-    app.put('/listing/:id', async (req, res) => {
-      const listingId = req.params.id;
-      const { 
-        user_id, 
-        name, 
-        description, 
-        quality, 
-        location, 
-        category, 
-        images, 
-        tags, 
-        price 
-      } = req.body;
-    
-      try {
-        // First, verify that the listing exists and belongs to the user
-        const checkListing = await query(
-          'SELECT * FROM listings WHERE listing_id = $1 AND user_id = $2',
-          [listingId, user_id]
-        );
-    
-        if (checkListing.rows.length === 0) {
-          return res.status(404).json({ 
-            message: 'Listing not found or you do not have permission to update it' 
-          });
-        }
-    
-        // Update the listing details
-        const updateResult = await query(
-          `UPDATE listings 
-           SET name = $1, description = $2, quality = $3, location = $4, 
-               category = $5, price = $6, updated_at = CURRENT_TIMESTAMP
-           WHERE listing_id = $7 RETURNING *`,
-          [name, description, quality, location, category, price, listingId]
-        );
-    
-        // Delete existing images for this listing
-        await query('DELETE FROM images WHERE listing_id = $1', [listingId]);
-    
-        // Insert new images
-        if (images && images.length > 0) {
-          for (const image of images) {
-            await query(
-              'INSERT INTO images (listing_id, url, cloudinary_id) VALUES ($1, $2, $3)',
-              [listingId, image.url, image.path]
-            );
-          }
-        }
-    
-        // Delete existing tags for this listing
-        await query('DELETE FROM listing_tags WHERE listing_id = $1', [listingId]);
-    
-        // Insert new tags
-        if (tags && tags.length > 0) {
-          for (const tag of tags) {
-            // First check if the tag exists
-            const tagResult = await query('SELECT * FROM tags WHERE name = $1', [tag]);
-            let tagId;
-    
-            if (tagResult.rows.length > 0) {
-              // Tag exists, use its ID
-              tagId = tagResult.rows[0].tag_id;
-            } else {
-              // Tag doesn't exist, create it
-              const newTagResult = await query(
-                'INSERT INTO tags (name) VALUES ($1) RETURNING tag_id',
-                [tag]
-              );
-              tagId = newTagResult.rows[0].tag_id;
-            }
-    
-            // Link tag to listing
-            await query(
-              'INSERT INTO listing_tags (listing_id, tag_id) VALUES ($1, $2)',
-              [listingId, tagId]
-            );
-          }
-        }
-    
-        // Fetch the updated listing with its images and tags
-        const updatedListing = await query(
-          'SELECT * FROM listings WHERE listing_id = $1',
-          [listingId]
-        );
-    
-        const updatedImages = await query(
-          'SELECT url, cloudinary_id as path FROM images WHERE listing_id = $1',
-          [listingId]
-        );
-    
-        const updatedTags = await query(
-          `SELECT t.name 
-           FROM tags t 
-           JOIN listing_tags lt ON t.tag_id = lt.tag_id 
-           WHERE lt.listing_id = $1`,
-          [listingId]
-        );
-    
-        // Combine all data for response
-        const responseData = {
-          ...updatedListing.rows[0],
-          images: updatedImages.rows,
-          tags: updatedTags.rows.map(tag => tag.name)
-        };
-    
-        res.status(200).json(responseData);
-      } catch (error) {
-        console.error('Error updating listing:', error);
-        res.status(500).json({ message: 'Internal server error' });
-      }
-    });
-
     // Send success response
     res.status(201).json({ message: 'Listing created successfully', listingId });
   } catch (err) {
     console.error('Error creating listing:', err);
     res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// Make sure this route is defined outside of any other route handlers
+app.put('/listing/:id', async (req, res) => {
+  const listingId = req.params.id;
+  const { 
+    user_id, 
+    name, 
+    description, 
+    quality, 
+    location, 
+    category, 
+    images, 
+    tags, 
+    price 
+  } = req.body;
+
+  try {
+    // First, verify that the listing exists and belongs to the user
+    const checkListing = await query(
+      'SELECT * FROM listings WHERE listing_id = $1 AND user_id = $2',
+      [listingId, user_id]
+    );
+
+    if (checkListing.rows.length === 0) {
+      return res.status(404).json({ 
+        message: 'Listing not found or you do not have permission to update it' 
+      });
+    }
+
+    // Update the listing details
+    const updateResult = await query(
+      `UPDATE listings 
+       SET name = $1, description = $2, quality = $3, location = $4, 
+           category = $5, price = $6
+       WHERE listing_id = $7 RETURNING *`,
+      [name, description, quality, location, category, price, listingId]
+    );
+
+    // Delete existing images for this listing
+    await query('DELETE FROM images WHERE listing_id = $1', [listingId]);
+
+    // Insert new images
+    if (images && images.length > 0) {
+      for (const image of images) {
+        await query(
+          'INSERT INTO images (listing_id, filename) VALUES ($1, $2)',
+          [listingId, image]
+        );
+      }
+    }
+
+    // Delete existing tags for this listing
+    await query('DELETE FROM listing_tag WHERE listing_id = $1', [listingId]);
+
+    // Insert new tags
+    if (tags && tags.length > 0) {
+      for (const tag of tags) {
+        await query(
+          'INSERT INTO listing_tag (listing_id, tag_name) VALUES ($1, $2)',
+          [listingId, tag]
+        );
+      }
+    }
+
+    // Fetch the updated listing with its images and tags
+    const updatedListing = await query(
+      'SELECT * FROM listings WHERE listing_id = $1',
+      [listingId]
+    );
+
+    const updatedImages = await query(
+      'SELECT filename FROM images WHERE listing_id = $1',
+      [listingId]
+    );
+
+    const updatedTags = await query(
+      'SELECT tag_name FROM listing_tag WHERE listing_id = $1',
+      [listingId]
+    );
+
+    // Combine all data for response
+    const responseData = {
+      ...updatedListing.rows[0],
+      images: updatedImages.rows,
+      tags: updatedTags.rows.map(tag => tag.tag_name)
+    };
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Error updating listing:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
@@ -578,8 +560,15 @@ app.delete('/wishlist/:userId/remove', async (req, res) => {
 
 
 // Listen on the specified port
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// At the bottom of your server.js file
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+// Add this temporary route to test if the endpoint is accessible
+app.get('/listing/:id', async (req, res) => {
+  res.status(200).json({ message: 'Endpoint is accessible', id: req.params.id });
 });
 
 
