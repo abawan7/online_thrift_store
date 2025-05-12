@@ -34,14 +34,13 @@ const WishlistView = ({ navigation }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
   const [wishlistItems, setWishlistItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState(null);
   const [keywords, setKeywords] = useState({});
   const [showLocation, setShowLocation] = useState(false);
   const { getUserLocation, geocodeAddress, latitude, longitude, address, errorMsg } = useLocation();
   const [matchedSellers, setMatchedSellers] = useState([]);
   const [nearbySellers, setNearbySellers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isTracking, setIsTracking] = useState(false);
 
   // Toggle menu function
@@ -124,16 +123,32 @@ const WishlistView = ({ navigation }) => {
           }
           
           setWishlistItems(wishlistData);
-          setLoading(false);
           
-          // Extract keywords for each wishlist item
+          // Only extract keywords if we have items
           if (wishlistData.length > 0) {
-            extractKeywords(wishlistData.map(item => item.item_description));
+            // Extract keywords locally first as a fallback
+            const localKeywords = {};
+            wishlistData.forEach(item => {
+              if (!item.item_description) return;
+              const words = item.item_description.toLowerCase().split(/\s+/);
+              const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
+              localKeywords[item.item_description] = words.filter(word => 
+                word.length > 3 && !commonWords.includes(word)
+              );
+            });
+            setKeywords(localKeywords);
+
+            // Then try to get better keywords from the server
+            try {
+              await extractKeywords(wishlistData.map(item => item.item_description));
+            } catch (keywordError) {
+              console.log('Using local keyword extraction as fallback');
+              // We already set the local keywords above, so no need to do anything here
+            }
           }
         }
       } catch (error) {
         console.error('Error fetching wishlist items:', error);
-        setLoading(false);
         
         // For demo purposes, set some dummy data if API fails
         const dummyWishlist = [
@@ -146,7 +161,19 @@ const WishlistView = ({ navigation }) => {
         ];
         
         setWishlistItems(dummyWishlist);
-        extractKeywords(dummyWishlist.map(item => item.item_description));
+        
+        // Extract keywords locally for dummy data
+        const dummyKeywords = {};
+        dummyWishlist.forEach(item => {
+          const words = item.item_description.toLowerCase().split(/\s+/);
+          const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
+          dummyKeywords[item.item_description] = words.filter(word => 
+            word.length > 3 && !commonWords.includes(word)
+          );
+        });
+        setKeywords(dummyKeywords);
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -155,33 +182,19 @@ const WishlistView = ({ navigation }) => {
 
   // Extract keywords from wishlist items
   const extractKeywords = async (items) => {
+    if (!items || items.length === 0) return;
+    
     try {
       const API_URL = `${Constants.expoConfig.extra.API_URL}/extract-keywords`;
       
       const response = await axios.post(API_URL, { wishlistItems: items });
       
-      setKeywords(response.data.keywords);
+      if (response.data && response.data.keywords) {
+        setKeywords(response.data.keywords);
+      }
     } catch (error) {
       console.error("Error extracting keywords:", error);
-      
-      // Enhanced fallback keyword extraction if API fails
-      const fallbackKeywords = {};
-      items.forEach(item => {
-        if (!item) return;
-        
-        // Split the item description into words
-        const words = item.toLowerCase().split(/\s+/);
-        
-        // Filter out common words and keep meaningful keywords
-        const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
-        const filteredWords = words.filter(word => 
-          word.length > 3 && !commonWords.includes(word)
-        );
-        
-        fallbackKeywords[item] = filteredWords;
-      });
-      
-      setKeywords(fallbackKeywords);
+      // Don't throw the error, just log it and let the local keywords be used
     }
   };
 
@@ -393,9 +406,10 @@ const WishlistView = ({ navigation }) => {
       const token = await AsyncStorage.getItem('token');
       
       await axios.delete(
-        `${Constants.expoConfig.extra.API_URL}/wishlist/${wishlistId}`,
+        `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}/remove`,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          data: { item: wishlistItems.find(item => item.wishlist_id === wishlistId)?.item_description }
         }
       );
       
@@ -508,7 +522,7 @@ const WishlistView = ({ navigation }) => {
         <View style={styles.wishlistContainer}>
           <Text style={styles.sectionTitle}>Your Wishlist Items</Text>
           
-          {loading ? (
+          {isLoading ? (
             <Text style={styles.loadingText}>Loading wishlist items...</Text>
           ) : wishlistItems.length === 0 ? (
             <Text style={styles.emptyText}>Your wishlist is empty. Add items you're looking for!</Text>

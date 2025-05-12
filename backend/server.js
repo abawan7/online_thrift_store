@@ -175,38 +175,37 @@ app.get('/getUserProfile', async (req, res) => {
   }
 });
 
-
 // Dummy route for extracting keywords (just for demonstration)
 app.post("/extract-keywords", (req, res) => {
   console.log('inside extract keywords of server.js');
   const { wishlistItems } = req.body;
 
-  const pythonScriptPath = path.resolve(__dirname, "..", "hooks", "keyword_extraction.py");
-  const pythonProcess = spawn("python", [pythonScriptPath]);
+  try {
+    // Simple keyword extraction in Node.js
+    const keywords = {};
+    const commonWords = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'shall', 'should', 'may', 'might', 'must', 'can', 'could']);
 
-  // Send JSON data to Python script
-  pythonProcess.stdin.write(JSON.stringify(wishlistItems));
-  pythonProcess.stdin.end();
+    wishlistItems.forEach(item => {
+      if (!item) return;
+      
+      // Split into words and clean them
+      const words = item.toLowerCase()
+        .replace(/[^\w\s]/g, '') // Remove punctuation
+        .split(/\s+/)
+        .filter(word => 
+          word.length > 3 && // Keep words longer than 3 characters
+          !commonWords.has(word) // Remove common words
+        );
+      
+      keywords[item] = words;
+    });
 
-  let data = "";
-
-  pythonProcess.stdout.on("data", (chunk) => {
-    data += chunk.toString();
-  });
-
-  pythonProcess.stderr.on("data", (error) => {
-    console.error("Error:", error.toString());
-  });
-
-  pythonProcess.stdout.on("end", () => {
-    try {
-      const keywords = JSON.parse(data);
-      res.json({ keywords });
-      console.log("extracted keywords are: ", keywords);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to process data" });
-    }
-  });
+    console.log("extracted keywords are: ", keywords);
+    res.json({ keywords });
+  } catch (error) {
+    console.error("Error extracting keywords:", error);
+    res.status(500).json({ error: "Failed to process data" });
+  }
 });
 
 app.put('/updateLocation/:userId', async (req, res) => {
