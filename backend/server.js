@@ -739,25 +739,13 @@ app.get('/listing/:id', async (req, res) => {
 // Create a new conversation
 app.post('/api/conversations', async (req, res) => {
   try {
-    const { listing_id, seller_id, buyer_id } = req.body;
-    console.log('Received conversation creation request:', { listing_id, seller_id, buyer_id });
+    const { seller_id, buyer_id } = req.body;
+    console.log('Received conversation creation request:', { seller_id, buyer_id });
 
     // Validate required fields
-    if (!listing_id || !seller_id || !buyer_id) {
-      console.log('Missing required fields:', { listing_id, seller_id, buyer_id });
+    if (!seller_id || !buyer_id) {
+      console.log('Missing required fields:', { seller_id, buyer_id });
       return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Check if listing exists
-    const listingCheck = await query(
-      'SELECT * FROM listings WHERE listing_id = $1',
-      [listing_id]
-    );
-    console.log('Listing check result:', listingCheck.rows);
-
-    if (listingCheck.rows.length === 0) {
-      console.log('Listing not found:', listing_id);
-      return res.status(404).json({ message: 'Listing not found' });
     }
 
     // Check if users exist
@@ -780,8 +768,8 @@ app.post('/api/conversations', async (req, res) => {
 
     // Check if conversation already exists
     const existingConversation = await query(
-      'SELECT * FROM conversations WHERE listing_id = $1 AND seller_id = $2 AND buyer_id = $3',
-      [listing_id, seller_id, buyer_id]
+      'SELECT * FROM conversations WHERE seller_id = $1 AND buyer_id = $2',
+      [seller_id, buyer_id]
     );
     console.log('Existing conversation check:', existingConversation.rows);
 
@@ -792,8 +780,8 @@ app.post('/api/conversations', async (req, res) => {
 
     // Create new conversation
     const result = await query(
-      'INSERT INTO conversations (listing_id, seller_id, buyer_id) VALUES ($1, $2, $3) RETURNING *',
-      [listing_id, seller_id, buyer_id]
+      'INSERT INTO conversations (seller_id, buyer_id) VALUES ($1, $2) RETURNING *',
+      [seller_id, buyer_id]
     );
 
     console.log('Created new conversation:', result.rows[0]);
@@ -817,17 +805,12 @@ app.get('/api/conversations', async (req, res) => {
     const userId = decoded.user_id;
 
     const result = await query(
-      `SELECT c.*, l.name as listing_name, l.price as listing_price,
-              CASE 
-                WHEN c.seller_id = $1 THEN u2.name
-                ELSE u1.name
-              END as other_user_name,
-              CASE 
-                WHEN c.seller_id = $1 THEN u2.user_id
-                ELSE u1.user_id
-              END as other_user_id
+      `SELECT c.*, 
+              u1.name as seller_name,
+              u1.user_id as seller_id,
+              u2.name as buyer_name,
+              u2.user_id as buyer_id
        FROM conversations c
-       JOIN listings l ON c.listing_id = l.listing_id
        JOIN users u1 ON c.seller_id = u1.user_id
        JOIN users u2 ON c.buyer_id = u2.user_id
        WHERE c.seller_id = $1 OR c.buyer_id = $1

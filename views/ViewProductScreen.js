@@ -1,19 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Alert, Animated, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Header from './Header';
 import Footer from './FooterView';
+import SideMenu from './SideMenu';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Constants from 'expo-constants';
 
 const { width } = Dimensions.get('window');
+const menuWidth = width * 0.5;
 
 const ViewProductScreen = ({ route, navigation }) => {
   // Get the product data passed from the navigation params
   const { product } = route.params;
   const [userId, setUserId] = useState(null);
   const [token, setToken] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoadingPhone, setIsLoadingPhone] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
 
   useEffect(() => {
     const getUserId = async () => {
@@ -25,32 +30,30 @@ const ViewProductScreen = ({ route, navigation }) => {
     getUserId();
   }, []);
 
+  const toggleMenu = () => {
+    if (isMenuOpen) {
+      Animated.timing(slideAnim, {
+        toValue: -menuWidth,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setIsMenuOpen(false));
+    } else {
+      setIsMenuOpen(true);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
   const handleChatPress = async () => {
     try {
-      // Log the entire product object to see its structure
-      console.log('Full product data:', JSON.stringify(product, null, 2));
-      console.log('User ID:', userId);
-      console.log('Token:', token);
-      console.log('API URL:', Constants.expoConfig.extra.API_URL);
-      console.log('Seller Email:', product.user_email);
-
-      // First, let's verify the API URL is correct
-      const apiUrl = `${Constants.expoConfig.extra.API_URL}/api/getUserProfile`;
-      console.log('Making request to:', apiUrl);
-
-      // Test the API connection first
-      try {
-        const testResponse = await axios.get(`${Constants.expoConfig.extra.API_URL}/test`);
-        console.log('Test response:', testResponse.data);
-      } catch (testError) {
-        console.error('Test request failed:', testError.message);
-        Alert.alert('Error', 'Could not connect to the server. Please try again.');
-        return;
-      }
-
-      // Fetch seller's ID using their email
-      const sellerResponse = await axios.get(
-        apiUrl,
+      setIsLoadingPhone(true);
+      console.log('Starting chat with seller:', product.user_email);
+      
+      const response = await axios.get(
+        `${Constants.expoConfig.extra.API_URL}/api/getUserProfile`,
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -62,98 +65,125 @@ const ViewProductScreen = ({ route, navigation }) => {
         }
       );
 
-      console.log('Seller Response:', JSON.stringify(sellerResponse.data, null, 2));
+      console.log('Seller profile response:', response.data);
 
-      if (!sellerResponse.data || !sellerResponse.data.user || !sellerResponse.data.user.user_id) {
-        console.error('Could not fetch seller ID. Response:', sellerResponse.data);
-        Alert.alert('Error', 'Could not identify the seller. Please try again.');
-        return;
+      if (response.data && response.data.user) {
+        const sellerId = response.data.user.user_id;
+        const sellerName = response.data.user.name;
+
+        // Create or get existing conversation
+        const conversationResponse = await axios.post(
+          `${Constants.expoConfig.extra.API_URL}/api/conversations`,
+          {
+            seller_id: sellerId,
+            buyer_id: userId
+          },
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        console.log('Conversation response:', conversationResponse.data);
+
+        // Navigate to chat screen
+        navigation.navigate('Chat', {
+          conversationId: conversationResponse.data.conversation_id,
+          sellerId: sellerId,
+          sellerName: sellerName
+        });
+      } else {
+        Alert.alert('Error', 'Could not find seller information');
       }
-
-      const sellerId = sellerResponse.data.user.user_id;
-      const sellerName = sellerResponse.data.user.name;
-      console.log('Seller ID:', sellerId);
-      console.log('Seller Name:', sellerName);
-
-      // Ensure buyer_id is a number
-      const numericBuyerId = parseInt(userId, 10);
-      if (isNaN(numericBuyerId)) {
-        console.error('Invalid buyer ID:', userId);
-        Alert.alert('Error', 'Invalid user ID. Please try logging in again.');
-        return;
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
       }
+      Alert.alert('Error', 'Could not start chat. Please try again.');
+    } finally {
+      setIsLoadingPhone(false);
+    }
+  };
 
-      const conversationData = {
-        listing_id: parseInt(product.listing_id, 10),
-        seller_id: parseInt(sellerId, 10),
-        buyer_id: numericBuyerId
-      };
-
-      console.log('Creating conversation with data:', JSON.stringify(conversationData, null, 2));
-
-      // Create a new conversation if it doesn't exist
-      const response = await axios.post(
-        `${Constants.expoConfig.extra.API_URL}/api/conversations`,
-        conversationData,
+  const handlePhonePress = async () => {
+    try {
+      setIsLoadingPhone(true);
+      console.log('Fetching profile for email:', product.user_email);
+      
+      const response = await axios.get(
+        `${Constants.expoConfig.extra.API_URL}/api/getUserProfile`,
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
+          },
+          params: {
+            email: product.user_email
           }
         }
       );
 
-      console.log('Conversation created:', JSON.stringify(response.data, null, 2));
+      console.log('Profile response:', response.data);
 
-      navigation.navigate('Chat', {
-        conversationId: response.data.conversation_id,
-        sellerId: sellerId,
-        sellerName: sellerName,
-        listingId: product.listing_id
-      });
-    } catch (error) {
-      console.error('Full error object:', error);
-      if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
-        console.error('Error response headers:', error.response.headers);
+      if (response.data && response.data.user && response.data.user.phone) {
+        const phoneNumber = response.data.user.phone;
+        console.log('Found phone number:', phoneNumber);
+        
+        // Show confirmation dialog before opening dialer
+        Alert.alert(
+          'Call Seller',
+          `Would you like to call ${response.data.user.name} at ${phoneNumber}?`,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Call',
+              onPress: () => {
+                console.log('Opening dialer for:', phoneNumber);
+                Linking.openURL(`tel:${phoneNumber}`);
+              }
+            }
+          ]
+        );
+      } else {
+        console.log('No phone number found in response:', response.data);
+        Alert.alert('Error', 'Seller phone number is not available');
       }
-      console.error('Error message:', error.message);
-      Alert.alert('Error', 'Could not start conversation. Please try again.');
+    } catch (error) {
+      console.error('Error fetching seller phone:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+      }
+      Alert.alert('Error', 'Could not fetch seller phone number. Please try again.');
+    } finally {
+      setIsLoadingPhone(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Header title="Online Thrift Store" />
-      
-      <ScrollView style={styles.scrollView}>
-        {/* Product Image */}
-        <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: product.image_url }} 
-            style={styles.productImage} 
-            resizeMode="contain"
-          />
-          <View style={styles.imageIndicators}>
-            <View style={[styles.indicator, styles.activeIndicator]} />
-            <View style={styles.indicator} />
-            <View style={styles.indicator} />
-            <View style={styles.indicator} />
-          </View>
-        </View>
-        
-        {/* Product Info */}
+      <Header
+        title="Product Details"
+        onMenuPress={toggleMenu}
+        onNotificationsPress={() => navigation.navigate('NotificationScreen')}
+      />
+      <SideMenu slideAnim={slideAnim} toggleMenu={toggleMenu} menuWidth={menuWidth} />
+      {isMenuOpen && (
+        <TouchableOpacity style={styles.overlay} onPress={toggleMenu} />
+      )}
+      <ScrollView style={styles.content}>
+        <Image source={{ uri: product.image_url }} style={styles.productImage} />
         <View style={styles.productInfo}>
-          <View style={styles.titlePriceContainer}>
-            <Text style={styles.productName}>{product.name}</Text>
-            <Text style={styles.productPrice}>PKR {product.price}</Text>
-          </View>
-          
-          <View style={styles.locationContainer}>
-            <Ionicons name="location-outline" size={16} color="#666" />
-            <Text style={styles.locationText}>{product.location}</Text>
-          </View>
+          <Text style={styles.productName}>{product.name}</Text>
+          <Text style={styles.productLocation}>
+            <Ionicons name="location-outline" size={16} color="gray" /> {product.location}
+          </Text>
+          <Text style={styles.productPrice}>PKR {product.price}</Text>
           
           {/* Seller Info */}
           <View style={styles.sellerContainer}>
@@ -168,64 +198,31 @@ const ViewProductScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             </View>
             <View style={styles.contactButtons}>
-              <TouchableOpacity style={styles.contactButton}>
-                <Ionicons name="call-outline" size={20} color="#333" />
+              <TouchableOpacity 
+                style={[styles.contactButton, isLoadingPhone && styles.contactButtonDisabled]} 
+                onPress={handlePhonePress}
+                disabled={isLoadingPhone}
+              >
+                {isLoadingPhone ? (
+                  <ActivityIndicator size="small" color="#333" />
+                ) : (
+                  <Ionicons name="call-outline" size={20} color="#333" />
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactButton}>
+              <TouchableOpacity 
+                style={[styles.contactButton, isLoadingPhone && styles.contactButtonDisabled]} 
+                onPress={handleChatPress}
+                disabled={isLoadingPhone}
+              >
                 <Ionicons name="chatbubble-outline" size={20} color="#333" />
               </TouchableOpacity>
             </View>
           </View>
-          
-          {/* Rating */}
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingLabel}>Rating: </Text>
-            <View style={styles.starsContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Ionicons 
-                  key={star}
-                  name={star <= 4 ? "star" : "star-outline"} 
-                  size={18} 
-                  color="#FFD700" 
-                />
-              ))}
-            </View>
-          </View>
-          
-          {/* Details */}
-          <View style={styles.detailsSection}>
-            <Text style={styles.sectionTitle}>Details</Text>
-            <View style={styles.detailsGrid}>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Brand:</Text>
-                <Text style={styles.detailValue}>Apple</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Condition:</Text>
-                <Text style={styles.detailValue}>Used</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>OS:</Text>
-                <Text style={styles.detailValue}>MAC</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Model:</Text>
-                <Text style={styles.detailValue}>Macbook</Text>
-              </View>
-            </View>
-          </View>
-          
-          {/* Description */}
-          <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.descriptionText}>{product.description}</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeMoreText}>see more</Text>
-            </TouchableOpacity>
-          </View>
+
+          <Text style={styles.descriptionTitle}>Description</Text>
+          <Text style={styles.description}>{product.description}</Text>
         </View>
       </ScrollView>
-      
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.chatButton]}
@@ -234,12 +231,7 @@ const ViewProductScreen = ({ route, navigation }) => {
           <Ionicons name="chatbubbles-outline" size={24} color="#fff" />
           <Text style={styles.buttonText}>Chat with Seller</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.contactButton}>
-          <Ionicons name="call-outline" size={20} color="#333" />
-        </TouchableOpacity>
       </View>
-      
       <Footer />
     </View>
   );
@@ -250,148 +242,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  scrollView: {
+  content: {
     flex: 1,
-  },
-  imageContainer: {
-    width: '100%',
-    height: 250,
-    backgroundColor: '#e8f0ed',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   productImage: {
     width: '100%',
-    height: '100%',
-  },
-  imageIndicators: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: 10,
-  },
-  indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ccc',
-    marginHorizontal: 3,
-  },
-  activeIndicator: {
-    backgroundColor: '#1A434E',
+    height: 300,
+    resizeMode: 'cover',
   },
   productInfo: {
-    padding: 15,
-    backgroundColor: '#fff',
-  },
-  titlePriceContainer: {
-    marginBottom: 10,
+    padding: 20,
   },
   productName: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 5,
+    color: '#333',
+    marginBottom: 10,
+  },
+  productLocation: {
+    fontSize: 16,
+    color: 'gray',
+    marginBottom: 10,
   },
   productPrice: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1A434E',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  locationText: {
-    marginLeft: 5,
-    color: '#666',
-  },
-  sellerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
-    marginBottom: 15,
-  },
-  sellerImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  sellerInfo: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  sellerName: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  viewProfile: {
-    color: '#1A434E',
-    textDecorationLine: 'underline',
-  },
-  contactButtons: {
-    flexDirection: 'row',
-  },
-  contactButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  ratingLabel: {
-    fontWeight: 'bold',
-  },
-  starsContainer: {
-    flexDirection: 'row',
-  },
-  detailsSection: {
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  detailItem: {
-    flexDirection: 'row',
-    width: '50%',
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontWeight: 'bold',
-    marginRight: 5,
-  },
-  detailValue: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
-  },
-  descriptionSection: {
     marginBottom: 20,
   },
-  descriptionText: {
-    color: '#666',
-    lineHeight: 20,
+  descriptionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
   },
-  seeMoreText: {
-    color: '#1A434E',
-    marginTop: 5,
+  description: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 24,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: width - menuWidth,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 500,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -418,6 +315,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  contactButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  sellerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginBottom: 20,
+  },
+  sellerImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  sellerInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  sellerName: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  viewProfile: {
+    color: '#1A434E',
+    textDecorationLine: 'underline',
+  },
+  contactButtons: {
+    flexDirection: 'row',
+  },
+  contactButtonDisabled: {
+    opacity: 0.5,
   },
 });
 

@@ -21,7 +21,14 @@
           "locationWhenInUsePermission": "Allow Online Thrift Store to use your location when the app is open."
         }
       ],
-      "expo-background-task"
+      [
+        "expo-background-fetch",
+        {
+          "backgroundFetch": {
+            "minimumInterval": 15
+          }
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,
@@ -47,7 +54,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "API_URL": "http://localhost:3000",
+      "API_URL": "http://192.168.0.100:3000",
       "CLOUD_NAME": "dr5gfm2nh"
     }
   }

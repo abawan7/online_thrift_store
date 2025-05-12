@@ -24,7 +24,7 @@ const ChatView = ({ route, navigation }) => {
   const [userId, setUserId] = useState(null);
   const [socket, setSocket] = useState(null);
   const flatListRef = useRef(null);
-  const { conversationId, sellerId, sellerName, listingId } = route.params;
+  const { conversationId, sellerId, sellerName } = route.params;
 
   useEffect(() => {
     const setupChat = async () => {
@@ -76,29 +76,14 @@ const ChatView = ({ route, navigation }) => {
     if (!newMessage.trim()) return;
 
     try {
-      const token = await AsyncStorage.getItem('token');
       const messageData = {
         conversationId,
         content: newMessage.trim(),
         senderId: parseInt(userId, 10)
       };
 
-      // Send message through socket
+      // Send message through socket only
       socket.emit('send_message', messageData);
-
-      // Also save to database
-      const response = await axios.post(
-        `${Constants.expoConfig.extra.API_URL}/api/messages`,
-        messageData,
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      console.log('Message sent:', response.data);
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);

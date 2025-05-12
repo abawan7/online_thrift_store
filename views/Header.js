@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, TextInpu
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native'; // Import
 
-const Header = ({ title, onMenuPress, onNotificationsPress, onSearch }) => {
+const Header = ({ title, onMenuPress, onNotificationsPress, onSearch, showSearch = false }) => {
     const navigation = useNavigation(); // Initialize navigation
-    const [showSearch, setShowSearch] = useState(false);
+    const [showSearchInput, setShowSearchInput] = useState(false);
     const [searchText, setSearchText] = useState('');
 
     const handleNotificationsPress = () => {
@@ -13,8 +13,8 @@ const Header = ({ title, onMenuPress, onNotificationsPress, onSearch }) => {
     };
 
     const toggleSearch = () => {
-        setShowSearch(!showSearch);
-        if (showSearch) {
+        setShowSearchInput(!showSearchInput);
+        if (showSearchInput) {
             // Reset search when closing
             setSearchText('');
             onSearch && onSearch('');
@@ -36,7 +36,7 @@ const Header = ({ title, onMenuPress, onNotificationsPress, onSearch }) => {
             </TouchableOpacity>
 
             {/* Title or Search Input */}
-            {showSearch ? (
+            {showSearchInput ? (
                 <View style={styles.searchContainer}>
                     <TextInput
                         style={styles.searchInput}
@@ -55,12 +55,14 @@ const Header = ({ title, onMenuPress, onNotificationsPress, onSearch }) => {
 
             {/* Right Icons Container */}
             <View style={styles.rightIconsContainer}>
-                {/* Search/Close Icon */}
-                <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
-                    <View style={styles.iconWrapper}>
-                        <Ionicons name={showSearch ? "close" : "search"} size={25} color="#1A434E" />
-                    </View>
-                </TouchableOpacity>
+                {/* Search/Close Icon - Only show if showSearch prop is true */}
+                {showSearch && (
+                    <TouchableOpacity onPress={toggleSearch} style={styles.iconButton}>
+                        <View style={styles.iconWrapper}>
+                            <Ionicons name={showSearchInput ? "close" : "search"} size={25} color="#1A434E" />
+                        </View>
+                    </TouchableOpacity>
+                )}
 
                 {/* Notifications Icon */}
                 <TouchableOpacity onPress={handleNotificationsPress} style={styles.iconButton}>

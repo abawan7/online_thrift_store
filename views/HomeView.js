@@ -63,14 +63,14 @@ const products = [
     },
     {
         id: '5',
-        name: 'Macbook 2021 16”',
+        name: 'Macbook 2021 16"',
         location: 'J2 Johar Town, Lahore Pakistan',
         price: 'PKR 250,000',
         image: 'https://www.notebookcheck.net/fileadmin/_processed_/8/5/csm_Unbenannt_1_394618d40b.jpg',
     },
     {
         id: '6',
-        name: 'Iphone 16 Pro”',
+        name: 'Iphone 16 Pro"',
         location: 'J2 Johar Town, Lahore Pakistan',
         price: 'PKR 650,000',
         image: 'https://regen.pk/cdn/shop/products/iphone-12-pro-451726_e0de9640-4bd6-4ba1-bbfa-f9729b57c376.jpg?v=1674907298',
@@ -164,6 +164,7 @@ const OnlineThriftStore = ({ route, navigation }) => {
                 onMenuPress={toggleMenu}
                 onNotificationsPress={() => console.log('Notifications Pressed')}
                 onSearch={handleSearch}
+                showSearch={true}
             />
 
             {/* Side Menu */}
