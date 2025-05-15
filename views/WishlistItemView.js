@@ -9,28 +9,37 @@ import axios from "axios";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { startLocationTracking, stopLocationTracking, isLocationTrackingEnabled, getCurrentLocationAndLog } from '../services/LocationService';
+import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
+import { useNavigation } from '@react-navigation/native';
+
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const screenWidth = Dimensions.get('window').width;
 const menuWidth = screenWidth * 0.7;
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
-  const toRadians = (degrees) => (degrees * Math.PI) / 180;
-
-  const R = 6371; // Earth's radius in km
-  const dLat = toRadians(lat2 - lat1);
-  const dLon = toRadians(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-    Math.cos(toRadians(lat2)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Distance in km
-  return distance;
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  return Number(distance.toFixed(1)); // Round to 1 decimal place
 };
 
-const WishlistView = ({ navigation }) => {
+const WishlistView = () => {
+  const navigation = useNavigation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(-menuWidth)).current;
   const [wishlistItems, setWishlistItems] = useState([]);
@@ -42,6 +51,15 @@ const WishlistView = ({ navigation }) => {
   const [matchedSellers, setMatchedSellers] = useState([]);
   const [nearbySellers, setNearbySellers] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [nearbyItems, setNearbyItems] = useState([]);
+  const [matchedWishlistListings, setMatchedWishlistListings] = useState([]);
+  const locationSubscriptionRef = useRef(null);
+  const [notificationToken, setNotificationToken] = useState(null);
+  const notificationListener = useRef();
+  const responseListener = useRef();
+  const [notifiedSellers, setNotifiedSellers] = useState(new Set());
+  const [isLocationTracking, setIsLocationTracking] = useState(false);
 
   // Toggle menu function
   const toggleMenu = () => {
@@ -74,233 +92,546 @@ const WishlistView = ({ navigation }) => {
     checkTrackingStatus();
   }, []);
 
-  // Toggle location tracking
-  const toggleLocationTracking = async (value) => {
-    if (value) {
-      const started = await startLocationTracking();
-      setIsTracking(started);
-    } else {
-      await stopLocationTracking();
-      setIsTracking(false);
+  // Extract keywords from text
+  const extractKeywordsFromText = (text) => {
+    if (!text) return [];
+    console.log('Extracting keywords from:', text);
+    const words = text.toLowerCase().split(/\s+/);
+    const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one', 'need'];
+    const keywords = words.filter(word => word.length > 3 && !commonWords.includes(word));
+    console.log('Extracted keywords:', keywords);
+    return keywords;
+  };
+
+  // Store matched listings in AsyncStorage
+  const storeMatchedListings = async (listings) => {
+    try {
+      await AsyncStorage.setItem('matchedWishlistListings', JSON.stringify(listings));
+    } catch (error) {
+      console.error('Error storing matched listings:', error);
     }
   };
 
-  // Fetch wishlist items from the database
-  useEffect(() => {
-    const fetchWishlistItems = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem('user_id');
-        setUserId(storedUserId);
-        
-        if (storedUserId) {
-          const token = await AsyncStorage.getItem('token');
-          
-          const response = await axios.get(
-            `${Constants.expoConfig.extra.API_URL}/wishlist/${storedUserId}`,
-            {
-              headers: { Authorization: `Bearer ${token}` }
-            }
-          );
-          
-          // Check the structure of the response data
-          console.log('Wishlist response:', response.data);
-          
-          // Handle different response formats
-          let wishlistData = [];
-          if (response.data.products) {
-            // If the response has a products array, use it
-            wishlistData = response.data.products.map((item, index) => ({
-              wishlist_id: index + 1,
-              item_description: item,
-              created_at: new Date().toISOString()
-            }));
-          } else if (response.data.wishlist) {
-            // If the response has a wishlist array, use it
-            wishlistData = response.data.wishlist;
-          } else if (Array.isArray(response.data)) {
-            // If the response is an array, use it directly
-            wishlistData = response.data;
-          }
-          
-          setWishlistItems(wishlistData);
-          
-          // Only extract keywords if we have items
-          if (wishlistData.length > 0) {
-            // Extract keywords locally first as a fallback
-            const localKeywords = {};
-            wishlistData.forEach(item => {
-              if (!item.item_description) return;
-              const words = item.item_description.toLowerCase().split(/\s+/);
-              const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
-              localKeywords[item.item_description] = words.filter(word => 
-                word.length > 3 && !commonWords.includes(word)
-              );
-            });
-            setKeywords(localKeywords);
+  // Load matched listings from AsyncStorage
+  const loadMatchedListings = async () => {
+    try {
+      const storedListings = await AsyncStorage.getItem('matchedWishlistListings');
+      if (storedListings) {
+        setMatchedWishlistListings(JSON.parse(storedListings));
+      }
+    } catch (error) {
+      console.error('Error loading matched listings:', error);
+    }
+  };
 
-            // Then try to get better keywords from the server
+  // Register for push notifications
+  const registerForPushNotificationsAsync = async () => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        console.log('Failed to get push token for push notification!');
+        return;
+      }
+
+      // Only get token if we're not in Expo Go
+      if (!Constants.appOwnership === 'expo') {
+        const token = await Notifications.getExpoPushTokenAsync();
+        setNotificationToken(token.data);
+        await AsyncStorage.setItem('notificationToken', token.data);
+      }
+    } catch (error) {
+      console.error('Error registering for push notifications:', error);
+    }
+  };
+
+  // Send local notification
+  const sendLocalNotification = async (seller) => {
+    try {
+      console.log('Preparing to send notification for seller:', seller);
+      console.log('Current user location:', userLocation);
+      
+      if (!userLocation) {
+        console.log('User location not available, cannot calculate distance');
+        return;
+      }
+
+      const distance = haversineDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        seller.latitude,
+        seller.longitude
+      );
+      
+      console.log('Calculated distance:', distance, 'km');
+
+      // Check if we're in Expo Go
+      if (Constants.appOwnership === 'expo') {
+        console.log('Using Alert in Expo Go');
+        Alert.alert(
+          'Matching Seller Nearby!',
+          `${seller.name} is ${distance.toFixed(1)} km away. They have items matching your wishlist!`,
+          [
+            {
+              text: 'View Profile',
+              onPress: () => {
+                console.log('Navigating to seller profile:', seller.seller_id);
+                navigation.navigate('SellerProfile', { sellerId: seller.seller_id });
+              }
+            },
+            {
+              text: 'Dismiss',
+              style: 'cancel'
+            }
+          ]
+        );
+      } else {
+        console.log('Using Notifications in development build');
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Matching Seller Nearby!',
+            body: `${seller.name} is ${distance.toFixed(1)} km away. They have items matching your wishlist!`,
+            data: { sellerId: seller.seller_id },
+          },
+          trigger: null,
+        });
+      }
+      console.log('Notification sent successfully');
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      throw error; // Re-throw to handle in the calling function
+    }
+  };
+
+  // Initialize location tracking
+  const initializeLocationTracking = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        return;
+      }
+
+      // Get initial location
+      const initialLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+      
+      setUserLocation(initialLocation.coords);
+      console.log('Initial location set:', initialLocation.coords);
+
+      // Start watching position
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 10000,
+          distanceInterval: 10,
+        },
+        (location) => {
+          console.log('Location update:', location.coords);
+          setUserLocation(location.coords);
+          checkNearbyMatches(location.coords);
+        }
+      );
+
+      locationSubscriptionRef.current = subscription;
+      setIsLocationTracking(true);
+      console.log('Location tracking started');
+    } catch (error) {
+      console.error('Error initializing location tracking:', error);
+    }
+  };
+
+  // Match wishlist items with listings
+  const matchWishlistWithListings = async (wishlistItems) => {
+    try {
+      console.log('Starting wishlist matching process');
+      console.log('Wishlist items:', wishlistItems);
+
+      // Get listings data from AsyncStorage
+      const listingsData = await AsyncStorage.getItem('listings');
+      if (!listingsData) {
+        console.log('No listings data available');
+        return [];
+      }
+
+      const listings = JSON.parse(listingsData);
+      console.log('Available listings:', listings);
+
+      const matchedListings = [];
+      const processedSellers = new Set();
+
+      // Process each wishlist item
+      for (const wishItem of wishlistItems) {
+        console.log('Processing wishlist item:', wishItem);
+        const itemKeywords = extractKeywordsFromText(wishItem.item_description);
+        
+        // Match with listings
+        for (const listing of listings) {
+          const listingName = listing.name?.toLowerCase() || '';
+          const listingDesc = listing.description?.toLowerCase() || '';
+          
+          const hasMatch = itemKeywords.some(keyword => 
+            listingName.includes(keyword) || listingDesc.includes(keyword)
+          );
+
+          if (hasMatch && !processedSellers.has(listing.user_email)) {
+            console.log('Found match:', {
+              wishlistItem: wishItem.item_description,
+              listing: listing.name,
+              keywords: itemKeywords
+            });
+
             try {
-              await extractKeywords(wishlistData.map(item => item.item_description));
-            } catch (keywordError) {
-              console.log('Using local keyword extraction as fallback');
-              // We already set the local keywords above, so no need to do anything here
+              // Geocode the listing location
+              const coords = await geocodeLocation(listing.location);
+              if (coords) {
+                const matchedListing = {
+                  ...listing,
+                  wishlist_item: wishItem.item_description,
+                  matched_keywords: itemKeywords,
+                  latitude: coords.latitude,
+                  longitude: coords.longitude,
+                  seller_id: listing.user_email
+                };
+                matchedListings.push(matchedListing);
+                processedSellers.add(listing.user_email);
+                console.log('Added matched listing with coordinates:', matchedListing);
+              }
+            } catch (error) {
+              console.error('Error geocoding listing location:', error);
             }
           }
         }
-      } catch (error) {
-        console.error('Error fetching wishlist items:', error);
-        
-        // For demo purposes, set some dummy data if API fails
-        const dummyWishlist = [
-          { wishlist_id: 1, item_description: "I want a coffee table", created_at: new Date().toISOString() },
-          { wishlist_id: 2, item_description: "iPhone 16", created_at: new Date().toISOString() },
-          { wishlist_id: 3, item_description: "A Macbook 2021", created_at: new Date().toISOString() },
-          { wishlist_id: 4, item_description: "One Smart Fitness Watch", created_at: new Date().toISOString() },
-          { wishlist_id: 5, item_description: "Handmade Ceramic Vase", created_at: new Date().toISOString() },
-          { wishlist_id: 6, item_description: "An Electric Mountain Bike", created_at: new Date().toISOString() },
-        ];
-        
-        setWishlistItems(dummyWishlist);
-        
-        // Extract keywords locally for dummy data
-        const dummyKeywords = {};
-        dummyWishlist.forEach(item => {
-          const words = item.item_description.toLowerCase().split(/\s+/);
-          const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
-          dummyKeywords[item.item_description] = words.filter(word => 
-            word.length > 3 && !commonWords.includes(word)
-          );
+      }
+
+      // Store matched listings
+      console.log('Storing matched listings:', matchedListings);
+      await AsyncStorage.setItem('matchedListings', JSON.stringify(matchedListings));
+      setMatchedWishlistListings(matchedListings);
+
+      return matchedListings;
+    } catch (error) {
+      console.error('Error matching wishlist with listings:', error);
+      return [];
+    }
+  };
+
+  // Initialize wishlist and location tracking
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        // Initialize location tracking first
+        await initializeLocationTracking();
+
+        // Then fetch wishlist items
+        const token = await AsyncStorage.getItem('userToken');
+        if (!token) {
+          console.log('No user token found');
+          return;
+        }
+
+        console.log('Fetching wishlist items...');
+        const response = await axios.get(`${Constants.expoConfig.extra.API_URL}/wishlist`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        setKeywords(dummyKeywords);
+
+        if (response.data && Array.isArray(response.data)) {
+          console.log('Wishlist items received:', response.data);
+          setWishlistItems(response.data);
+          
+          // Extract keywords for each wishlist item
+          const keywordsMap = {};
+          response.data.forEach(item => {
+            keywordsMap[item.item_description] = extractKeywordsFromText(item.item_description);
+          });
+          setKeywords(keywordsMap);
+          
+          // Match with listings
+          await matchWishlistWithListings(response.data);
+        }
+      } catch (error) {
+        console.error('Error during initialization:', error);
       } finally {
         setIsLoading(false);
       }
     };
+
+    initialize();
+  }, []);
+
+  // Check for nearby matches
+  const checkNearbyMatches = async (coords) => {
+    try {
+      console.log('Checking for nearby matches with coordinates:', coords);
+      const storedMatches = await AsyncStorage.getItem('matchedListings');
+      if (!storedMatches) {
+        console.log('No stored matches found in AsyncStorage');
+        return;
+      }
+
+      console.log('Retrieved stored matches:', storedMatches);
+      const matches = JSON.parse(storedMatches);
+      console.log('Parsed matches:', matches);
+
+      const nearbySellers = matches.filter(match => {
+        const distance = haversineDistance(
+          coords.latitude,
+          coords.longitude,
+          match.latitude,
+          match.longitude
+        );
+        console.log(`Checking seller ${match.seller_id}:`, {
+          name: match.name,
+          distance,
+          alreadyNotified: notifiedSellers.has(match.seller_id)
+        });
+        return distance <= 10 && !notifiedSellers.has(match.seller_id);
+      });
+
+      console.log('Found nearby sellers:', nearbySellers);
+
+      if (nearbySellers.length > 0) {
+        console.log('Processing nearby sellers for notifications');
+        for (const seller of nearbySellers) {
+          console.log('Attempting to send notification for seller:', seller);
+          try {
+            await sendLocalNotification(seller);
+            console.log('Successfully sent notification for seller:', seller.name);
+            setNotifiedSellers(prev => new Set([...prev, seller.seller_id]));
+          } catch (notificationError) {
+            console.error('Error sending notification for seller:', seller.name, notificationError);
+          }
+        }
+      } else {
+        console.log('No new nearby sellers found to notify');
+      }
+    } catch (error) {
+      console.error('Error checking nearby matches:', error);
+    }
+  };
+
+  // Initialize notifications and location tracking
+  useEffect(() => {
+    registerForPushNotificationsAsync();
     
+    // Only set up notification handlers if not in Expo Go
+    if (Constants.appOwnership !== 'expo') {
+      const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+        console.log('Notification received:', notification);
+      });
+
+      const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+        const { sellerId } = response.notification.request.content.data;
+        if (sellerId) {
+          navigation.navigate('SellerProfile', { sellerId });
+        }
+      });
+
+      return () => {
+        notificationListener.remove();
+        responseListener.remove();
+        if (locationSubscriptionRef.current) {
+          locationSubscriptionRef.current.remove();
+          locationSubscriptionRef.current = null;
+        }
+      };
+    }
+
+    return () => {
+      if (locationSubscriptionRef.current) {
+        locationSubscriptionRef.current.remove();
+        locationSubscriptionRef.current = null;
+      }
+    };
+  }, []);
+
+  // Render a wishlist item
+  const renderWishlistItem = ({ item }) => (
+    <View style={styles.itemContainer}>
+      <View style={styles.itemContent}>
+        <Text style={styles.itemText}>{item.item_description}</Text>
+        <Text style={styles.keywordText}>
+          Keywords: {keywords[item.item_description] ? keywords[item.item_description].join(", ") : "Extracting..."}
+        </Text>
+        <Text style={styles.dateText}>
+          Added on: {new Date(item.created_at).toLocaleDateString()}
+        </Text>
+      </View>
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => deleteWishlistItem(item.wishlist_id)}
+      >
+        <Ionicons name="trash-outline" size={20} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Render a seller card
+  const renderSellerCard = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.sellerCard}
+      onPress={() => navigation.navigate('SellerProfile', { sellerEmail: item.email, sellerName: item.name })}
+    >
+      <View style={styles.sellerInfo}>
+        <Text style={styles.sellerName}>{item.name}</Text>
+        <Text style={styles.sellerAddress}>
+          <Ionicons name="location-outline" size={14} color="#666" /> {item.address}
+        </Text>
+        {item.distance && (
+          <Text style={styles.distanceText}>{item.distance} km away</Text>
+        )}
+      </View>
+      <View style={styles.sellerItems}>
+        <Text style={styles.itemsTitle}>Matching Items:</Text>
+        <FlatList
+          data={item.items.slice(0, 2)} // Show only first 2 items
+          horizontal
+          renderItem={({ item: product }) => (
+            <TouchableOpacity 
+              style={styles.productCard}
+              onPress={() => navigation.navigate('ViewProduct', { product })}
+            >
+              <Image source={{ uri: product.image }} style={styles.productImage} />
+              <Text style={styles.productName}>{product.name}</Text>
+              <Text style={styles.productPrice}>PKR {product.price}</Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(product) => product.listing_id.toString()}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+
+  // Function to convert location text to coordinates
+  const geocodeLocation = async (locationText) => {
+    try {
+      const response = await axios.get(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`
+      );
+      if (response.data && response.data.length > 0) {
+        return {
+          latitude: parseFloat(response.data[0].lat),
+          longitude: parseFloat(response.data[0].lon)
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error geocoding location:', error);
+      return null;
+    }
+  };
+
+  // Function to calculate distance between two points using Haversine formula
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in kilometers
+  };
+
+  // Function to fetch and process wishlist items
+  const fetchWishlistItems = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem('user_id');
+      setUserId(storedUserId);
+      
+      if (storedUserId) {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.get(
+          `${Constants.expoConfig.extra.API_URL}/wishlist/${storedUserId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+
+        // Get user's current location using the hook function
+        const userLoc = await getUserLocation();
+        setUserLocation(userLoc);
+
+        if (userLoc) {
+          // Process wishlist items and check for nearby listings
+          const processedItems = await Promise.all(
+            response.data.products.map(async (item) => {
+              const itemLocation = await geocodeLocation(item.location);
+              if (itemLocation) {
+                const distance = calculateDistance(
+                  userLoc.latitude,
+                  userLoc.longitude,
+                  itemLocation.latitude,
+                  itemLocation.longitude
+                );
+                return {
+                  ...item,
+                  distance,
+                  isNearby: distance <= 5 // 5km radius
+                };
+              }
+              return {
+                ...item,
+                distance: null,
+                isNearby: false
+              };
+            })
+          );
+
+          setWishlistItems(processedItems);
+          setNearbyItems(processedItems.filter(item => item.isNearby));
+        } else {
+          setWishlistItems(response.data.products);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching wishlist items:', error);
+      Alert.alert('Error', 'Failed to load wishlist items');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchWishlistItems();
   }, []);
 
-  // Extract keywords from wishlist items
-  const extractKeywords = async (items) => {
-    if (!items || items.length === 0) return;
-    
-    try {
-      const API_URL = `${Constants.expoConfig.extra.API_URL}/extract-keywords`;
-      
-      const response = await axios.post(API_URL, { wishlistItems: items });
-      
-      if (response.data && response.data.keywords) {
-        setKeywords(response.data.keywords);
-      }
-    } catch (error) {
-      console.error("Error extracting keywords:", error);
-      // Don't throw the error, just log it and let the local keywords be used
-    }
-  };
-
-  // Find matching sellers based on wishlist items
-  const findMatchingSellers = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Get user location from AsyncStorage
-      const userLat = await AsyncStorage.getItem('latitude');
-      const userLon = await AsyncStorage.getItem('longitude');
-      
-      // Get all listings data from the Home route params
-      const { data } = navigation.getState().routes.find(route => route.name === 'Home').params;
-      
-      // Group listings by seller
-      const sellerMap = {};
-      
-      data.forEach(listing => {
-        if (!sellerMap[listing.user_email]) {
-          sellerMap[listing.user_email] = {
-            name: listing.user_name,
-            email: listing.user_email,
-            address: listing.location,
-            items: []
-          };
-        }
-        
-        sellerMap[listing.user_email].items.push({
-          listing_id: listing.listing_id,
-          name: listing.name,
-          price: listing.price,
-          image: listing.image_url,
-          description: listing.description,
-          location: listing.location
-        });
-      });
-      
-      // Convert to array
-      const sellers = Object.values(sellerMap);
-      
-      // Find sellers with matching items based on keywords
-      const matched = [];
-      const nearby = [];
-      
-      // Process each seller with for...of loop (supports await)
-      for (const seller of sellers) {
-        let hasMatch = false;
-        
-        // Check each wishlist item against seller's items
-        wishlistItems.forEach(wishItem => {
-          const itemKeywords = keywords[wishItem.item_description] || [];
-          
-          // Check if any seller item matches the keywords
-          seller.items.forEach(sellerItem => {
-            const itemName = sellerItem.name.toLowerCase();
-            const itemDesc = sellerItem.description ? sellerItem.description.toLowerCase() : '';
-            
-            const matchesKeyword = itemKeywords.some(keyword => 
-              itemName.includes(keyword.toLowerCase()) || 
-              itemDesc.includes(keyword.toLowerCase())
-            );
-            
-            if (matchesKeyword) {
-              hasMatch = true;
-            }
-          });
-        });
-        
-        if (hasMatch) {
-          matched.push(seller);
-        }
-        
-        // Check if seller is nearby (within 10km)
-        if (seller.location && userLat && userLon) {
-          try {
-            const sellerCoords = await geocodeAddress(seller.location);
-            
-            if (sellerCoords) {
-              const distance = haversineDistance(
-                parseFloat(userLat), 
-                parseFloat(userLon), 
-                sellerCoords.lat, 
-                sellerCoords.lon
-              );
-              
-              if (distance <= 10) { // Within 10km
-                nearby.push({...seller, distance: distance.toFixed(1)});
-              }
-            }
-          } catch (error) {
-            console.error('Error geocoding seller address:', error);
-          }
-        }
-      }
-      
-      setMatchedSellers(matched);
-      setNearbySellers(nearby);
-      setIsLoading(false);
-      setShowLocation(true);
-    } catch (error) {
-      console.error('Error finding matching sellers:', error);
-      setIsLoading(false);
-      Alert.alert('Error', 'Failed to find matching sellers. Please try again.');
-    }
-  };
+  const renderItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.itemContainer}
+      onPress={() => navigation.navigate('ViewProduct', { product: item })}
+    >
+      <Image 
+        source={{ uri: item.image_url }} 
+        style={styles.itemImage}
+      />
+      <View style={styles.itemDetails}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemLocation}>
+          <Ionicons name="location-outline" size={12} color="gray" /> 
+          {item.location}
+        </Text>
+        {item.isNearby && (
+          <Text style={styles.nearbyText}>
+            <Ionicons name="walk-outline" size={12} color="#4CAF50" /> 
+            Nearby! ({item.distance.toFixed(1)} km)
+          </Text>
+        )}
+        <Text style={styles.itemPrice}>PKR {item.price}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   // Add a new wishlist item
   const addWishlistItem = async (description) => {
@@ -314,7 +645,7 @@ const WishlistView = ({ navigation }) => {
       
       // Extract keywords locally first
       const itemWords = description.toLowerCase().split(/\s+/);
-      const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one'];
+      const commonWords = ['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'about', 'want', 'one', 'need'];
       const extractedKeywords = itemWords.filter(word => 
         word.length > 3 && !commonWords.includes(word)
       );
@@ -328,7 +659,9 @@ const WishlistView = ({ navigation }) => {
           {
             user_id: userId,
             item_description: description,
-            keywords: extractedKeywords
+            keywords: extractedKeywords,
+            latitude: 31.48451134818196,
+            longitude: 74.30064829198984
           },
           {
             headers: { Authorization: `Bearer ${token}` }
@@ -423,63 +756,6 @@ const WishlistView = ({ navigation }) => {
     }
   };
 
-  // Render a wishlist item
-  const renderWishlistItem = ({ item }) => (
-    <View style={styles.itemContainer}>
-      <View style={styles.itemContent}>
-        <Text style={styles.itemText}>{item.item_description}</Text>
-        <Text style={styles.keywordText}>
-          Keywords: {keywords[item.item_description] ? keywords[item.item_description].join(", ") : "Extracting..."}
-        </Text>
-        <Text style={styles.dateText}>
-          Added on: {new Date(item.created_at).toLocaleDateString()}
-        </Text>
-      </View>
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => deleteWishlistItem(item.wishlist_id)}
-      >
-        <Ionicons name="trash-outline" size={20} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  // Render a seller card
-  const renderSellerCard = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.sellerCard}
-      onPress={() => navigation.navigate('SellerProfile', { sellerEmail: item.email, sellerName: item.name })}
-    >
-      <View style={styles.sellerInfo}>
-        <Text style={styles.sellerName}>{item.name}</Text>
-        <Text style={styles.sellerAddress}>
-          <Ionicons name="location-outline" size={14} color="#666" /> {item.address}
-        </Text>
-        {item.distance && (
-          <Text style={styles.distanceText}>{item.distance} km away</Text>
-        )}
-      </View>
-      <View style={styles.sellerItems}>
-        <Text style={styles.itemsTitle}>Matching Items:</Text>
-        <FlatList
-          data={item.items.slice(0, 2)} // Show only first 2 items
-          horizontal
-          renderItem={({ item: product }) => (
-            <TouchableOpacity 
-              style={styles.productCard}
-              onPress={() => navigation.navigate('ViewProduct', { product })}
-            >
-              <Image source={{ uri: product.image }} style={styles.productImage} />
-              <Text style={styles.productName}>{product.name}</Text>
-              <Text style={styles.productPrice}>PKR {product.price}</Text>
-            </TouchableOpacity>
-          )}
-          keyExtractor={(product) => product.listing_id.toString()}
-        />
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <View style={styles.container}>
       <Header
@@ -529,8 +805,8 @@ const WishlistView = ({ navigation }) => {
           ) : (
             <FlatList
               data={wishlistItems}
-              renderItem={renderWishlistItem}
-              keyExtractor={(item) => item.wishlist_id.toString()}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.listing_id?.toString() || item.wishlist_id?.toString() || Math.random().toString()}
               style={styles.wishlistList}
             />
           )}
@@ -553,49 +829,6 @@ const WishlistView = ({ navigation }) => {
             <Text style={styles.addButtonText}>Add Item</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Find Matching Sellers Button */}
-        <TouchableOpacity 
-          style={styles.findButton}
-          onPress={findMatchingSellers}
-          disabled={isLoading}
-        >
-          <Text style={styles.findButtonText}>
-            {isLoading ? 'Finding Sellers...' : 'Find Matching Sellers'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Matching Sellers Section */}
-        {showLocation && (
-          <View style={styles.sellersContainer}>
-            {matchedSellers.length > 0 ? (
-              <>
-                <Text style={styles.sectionTitle}>Sellers with Matching Items</Text>
-                <FlatList
-                  data={matchedSellers}
-                  renderItem={renderSellerCard}
-                  keyExtractor={(item) => item.email}
-                  style={styles.sellersList}
-                />
-              </>
-            ) : (
-              <Text style={styles.emptyText}>No sellers found with matching items.</Text>
-            )}
-
-            {/* Nearby Sellers Section */}
-            {nearbySellers.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Sellers Near You</Text>
-                <FlatList
-                  data={nearbySellers}
-                  renderItem={renderSellerCard}
-                  keyExtractor={(item) => item.email}
-                  style={styles.sellersList}
-                />
-              </>
-            )}
-          </View>
-        )}
       </View>
 
       <Footer />
@@ -728,19 +961,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
-  findButton: {
-    backgroundColor: '#FF9800',
-    borderRadius: 8,
-    padding: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  findButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   loadingText: {
     textAlign: 'center',
     padding: 20,
@@ -820,6 +1040,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1A434E',
     fontWeight: 'bold',
+  },
+  itemImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  itemDetails: {
+    flex: 1,
+    marginLeft: 10,
+    justifyContent: 'space-between',
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  itemLocation: {
+    fontSize: 12,
+    color: 'gray',
+    marginBottom: 5,
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2c7a7b',
+  },
+  nearbySection: {
+    backgroundColor: '#E8F5E9',
+    padding: 15,
+    marginBottom: 10,
+  },
+  nearbyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 10,
+  },
+  nearbyText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginBottom: 5,
   },
 });
 

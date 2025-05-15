@@ -55,13 +55,13 @@ export default function SignupView({ navigation }) {
 
     try {
       console.log('Making signup request to:', `${Constants.expoConfig.extra.API_URL}/signup`);
-      console.log('Request data:', { email, username, password, phone_number: phoneNumber });
+      console.log('Request data:', { email, username, password, phone: phoneNumber });
       
       const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/signup`, {
         email,
         username,
         password,
-        phone_number: phoneNumber,  
+        phone: phoneNumber,  // Changed from phone_number to phone
       });
       
       console.log('Signup response:', response.data);

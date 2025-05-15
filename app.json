@@ -28,6 +28,13 @@
             "minimumInterval": 15
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff"
+        }
       ]
     ],
     "ios": {
@@ -48,13 +55,14 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION"
-      ]
+      ],
+      "useNextNotificationsApi": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "API_URL": "http://192.168.1.9:3000",
+      "API_URL": "http://192.168.0.103:3000",
       "CLOUD_NAME": "dr5gfm2nh"
     }
   }

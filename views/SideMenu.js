@@ -19,7 +19,7 @@ const SideMenu = ({ slideAnim, toggleMenu, menuWidth }) => {
             <TouchableOpacity onPress={toggleMenu}>
                 <View style={styles.menuHeader}>
                     <Ionicons style={styles.menuIcon} name="menu-outline" size={28} color="white"/>
-                    <Text style={styles.menuTitle}>Hi, IFRA</Text>
+                    <Text style={styles.menuTitle}></Text>
                 </View>
             </TouchableOpacity>
 

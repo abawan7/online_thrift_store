@@ -6,9 +6,10 @@ const jwt = require('jsonwebtoken'); // Import jsonwebtoken here
 require('dotenv').config();
 const http = require('http');
 const socketIo = require('socket.io');
+const axios = require('axios');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
@@ -25,10 +26,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
+// Add this near the top of the file, after middleware setup
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Request headers:', req.headers);
+  console.log('Request query:', req.query);
+  next();
+});
+
 // Sign-Up Route
 app.post('/signup', async (req, res) => {
   console.log('signup endpoint called');
-  const { email, username, password, phone_number } = req.body;
+  const { email, username, password, phone } = req.body;
 
   try {
     // Log the input data for debugging purposes
@@ -57,7 +66,7 @@ app.post('/signup', async (req, res) => {
       INSERT INTO public.users (email, name, password, phone, access_level) 
       VALUES ($1, $2, $3, $4, $5) RETURNING *
     `;
-    const insertParams = [email, username, hashedPassword, phone_number, 1];  // access_level defaults to 1
+    const insertParams = [email, username, hashedPassword, phone, 1];  // access_level defaults to 1
 
     // Log the insert query and parameters
     console.log('Insert SQL Query:', insertQuery);
@@ -529,78 +538,86 @@ app.get('/listings_with_user_and_images', async (req, res) => {
   }
 });
 
-
-
-
-// Add item to wishlist - New endpoint that matches your API call format
-app.post('/wishlist', async (req, res) => {
+// Ensure wishlists table exists
+const ensureWishlistsTable = async () => {
   try {
-    const { user_id, item_description } = req.body;
-    
-    // Extract keywords from item_description (simplified example)
-    const keywords = item_description.split(' ')
-      .filter(word => word.length > 3)
-      .map(word => word.toLowerCase());
-    
-    // Check if user has a wishlist
-    const wishlistResult = await query(
-      'SELECT * FROM wishlists WHERE user_id = $1',
-      [user_id]
-    );
-    
-    if (wishlistResult.rows.length === 0) {
-      // Create a new wishlist with the item
-      await query(
-        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2)',
-        [user_id, [item_description]]
+    await query(`
+      CREATE TABLE IF NOT EXISTS wishlists (
+        wishlist_id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(user_id),
+        products TEXT[] DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    } else {
-      // Add item to existing wishlist
-      const currentProducts = wishlistResult.rows[0].products || [];
-      
-      // Check if item already exists
-      if (!currentProducts.includes(item_description)) {
-        const updatedProducts = [...currentProducts, item_description];
-        
-        await query(
-          'UPDATE wishlists SET products = $1 WHERE user_id = $2',
-          [updatedProducts, user_id]
-        );
-      }
-    }
-    
-    res.status(201).json({ message: 'Item added to wishlist' });
+    `);
+    console.log('Wishlists table checked/created successfully');
   } catch (error) {
-    console.error('Error adding to wishlist:', error);
-    res.status(500).json({ message: 'Error adding to wishlist' });
+    console.error('Error ensuring wishlists table:', error);
   }
-});
+};
 
-// Get user's wishlist - Keep this endpoint as it matches your API call
+// Call this when server starts
+ensureWishlistsTable();
+
+// Get user's wishlist items
 app.get('/wishlist/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-    
-    // Check if user has a wishlist
-    const wishlistResult = await query(
-      'SELECT * FROM wishlists WHERE user_id = $1',
+    console.log('\n=== FETCHING WISHLIST ===');
+    console.log('User ID:', userId);
+
+    // First check if the user exists
+    const userCheck = await query(
+      'SELECT user_id, email FROM public.users WHERE user_id = $1',
       [userId]
     );
-    
-    if (wishlistResult.rows.length === 0) {
-      // Create a new wishlist for the user
-      await query(
-        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2)',
+
+    if (userCheck.rows.length === 0) {
+      console.log('User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get wishlist items from the database
+    const result = await query(
+      `SELECT w.*, u.name as user_name, u.email as user_email 
+       FROM wishlists w 
+       JOIN users u ON w.user_id = u.user_id 
+       WHERE w.user_id = $1`,
+      [userId]
+    );
+
+    console.log('Database query result:', JSON.stringify(result.rows, null, 2));
+
+    if (result.rows.length === 0) {
+      console.log('No wishlist found, creating new one...');
+      // If no wishlist exists, create an empty one
+      const newWishlist = await query(
+        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2) RETURNING *',
         [userId, []]
       );
-      
-      return res.json({ products: [] });
+      console.log('Created new wishlist:', JSON.stringify(newWishlist.rows[0], null, 2));
+      return res.json({ 
+        products: [],
+        user_id: userId,
+        user_email: userCheck.rows[0].email
+      });
     }
+
+    // Format the response to match the expected structure
+    const wishlistData = {
+      products: result.rows[0].products || [],
+      user_id: userId,
+      user_email: result.rows[0].user_email
+    };
+
+    console.log('Found wishlist:', JSON.stringify(wishlistData, null, 2));
+    console.log('Products array:', JSON.stringify(wishlistData.products, null, 2));
+    console.log('=== END WISHLIST FETCH ===\n');
     
-    // Return the existing wishlist
-    res.json(wishlistResult.rows[0]);
+    res.json(wishlistData);
   } catch (error) {
     console.error('Error fetching wishlist:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ message: 'Error fetching wishlist' });
   }
 });
@@ -611,40 +628,50 @@ app.post('/wishlist/:userId/add', async (req, res) => {
     const userId = req.params.userId;
     const { item } = req.body;
     
-    if (!item) {
-      return res.status(400).json({ message: 'Item name is required' });
-    }
+    console.log('\n=== ADDING TO WISHLIST ===');
+    console.log('User ID:', userId);
+    console.log('Item:', item);
     
-    // Check if user has a wishlist
+    if (!item) {
+      console.log('No item provided');
+      return res.status(400).json({ message: 'Item description is required' });
+    }
+
+    // Get current wishlist
     const wishlistResult = await query(
       'SELECT * FROM wishlists WHERE user_id = $1',
       [userId]
     );
-    
+
     if (wishlistResult.rows.length === 0) {
-      // Create a new wishlist with the item
-      await query(
-        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2)',
+      console.log('Creating new wishlist for user');
+      // Create new wishlist with the item
+      const newWishlist = await query(
+        'INSERT INTO wishlists (user_id, products) VALUES ($1, $2) RETURNING *',
         [userId, [item]]
       );
-    } else {
-      // Add item to existing wishlist
-      const currentProducts = wishlistResult.rows[0].products || [];
-      
-      // Check if item already exists
-      if (!currentProducts.includes(item)) {
-        const updatedProducts = [...currentProducts, item];
-        
-        await query(
-          'UPDATE wishlists SET products = $1 WHERE user_id = $2',
-          [updatedProducts, userId]
-        );
-      }
+      console.log('Created new wishlist:', JSON.stringify(newWishlist.rows[0], null, 2));
+      return res.status(201).json({ products: [item] });
     }
-    
-    res.status(201).json({ message: 'Item added to wishlist' });
+
+    // Add item to existing wishlist
+    const currentProducts = wishlistResult.rows[0].products || [];
+    if (!currentProducts.includes(item)) {
+      console.log('Adding new item to existing wishlist');
+      const updatedProducts = [...currentProducts, item];
+      const updatedWishlist = await query(
+        'UPDATE wishlists SET products = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 RETURNING *',
+        [updatedProducts, userId]
+      );
+      console.log('Updated wishlist:', JSON.stringify(updatedWishlist.rows[0], null, 2));
+      return res.json({ products: updatedProducts });
+    }
+
+    console.log('Item already exists in wishlist');
+    return res.json({ products: currentProducts });
   } catch (error) {
     console.error('Error adding to wishlist:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ message: 'Error adding to wishlist' });
   }
 });
@@ -655,33 +682,39 @@ app.delete('/wishlist/:userId/remove', async (req, res) => {
     const userId = req.params.userId;
     const { item } = req.body;
     
-    if (!item) {
-      return res.status(400).json({ message: 'Item name is required' });
-    }
+    console.log('\n=== REMOVING FROM WISHLIST ===');
+    console.log('User ID:', userId);
+    console.log('Item to remove:', item);
     
-    // Get current wishlist
+    if (!item) {
+      console.log('No item provided');
+      return res.status(400).json({ message: 'Item description is required' });
+    }
+
     const wishlistResult = await query(
       'SELECT * FROM wishlists WHERE user_id = $1',
       [userId]
     );
-    
+
     if (wishlistResult.rows.length === 0) {
+      console.log('Wishlist not found');
       return res.status(404).json({ message: 'Wishlist not found' });
     }
-    
-    // Remove item from products array
+
     const currentProducts = wishlistResult.rows[0].products || [];
     const updatedProducts = currentProducts.filter(product => product !== item);
-    
-    // Update wishlist
-    await query(
-      'UPDATE wishlists SET products = $1 WHERE user_id = $2',
+
+    console.log('Updating wishlist with filtered products');
+    const updatedWishlist = await query(
+      'UPDATE wishlists SET products = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 RETURNING *',
       [updatedProducts, userId]
     );
-    
-    res.json({ message: 'Item removed from wishlist' });
+    console.log('Updated wishlist:', JSON.stringify(updatedWishlist.rows[0], null, 2));
+
+    res.json({ products: updatedProducts });
   } catch (error) {
     console.error('Error removing from wishlist:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ message: 'Error removing from wishlist' });
   }
 });
@@ -725,11 +758,12 @@ io.on('connection', (socket) => {
   });
 });
 
-// Listen on the specified port
-// At the bottom of your server.js file
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// Start the server
+server.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+  console.log('Available routes:');
+  console.log('- GET /test-listings');
+  console.log('- GET /listings');
 });
 
 // Add this temporary route to test if the endpoint is accessible
@@ -918,6 +952,164 @@ app.post('/api/messages', async (req, res) => {
     console.error('Error stack:', error.stack);
     res.status(500).json({ message: 'Error creating message', error: error.message });
   }
+});
+
+// Get all listings with seller information
+app.get('/listings', async (req, res) => {
+  console.log('GET /listings endpoint called');
+  console.log('Request headers:', req.headers);
+  console.log('Request query:', req.query);
+  
+  try {
+    const { keyword } = req.query;
+    console.log('Searching listings with keyword:', keyword);
+
+    let queryText = `
+      SELECT 
+        l.listing_id,
+        l.name,
+        l.description,
+        l.price,
+        l.location,
+        l.created_at,
+        u.email as user_email,
+        u.name as user_name,
+        u.user_id as seller_id,
+        i.filename as image_url,
+        u.location as seller_location
+      FROM public.listings l
+      JOIN public.users u ON l.user_id = u.user_id
+      LEFT JOIN public.images i ON l.listing_id = i.listing_id
+    `;
+
+    const queryParams = [];
+
+    // Add keyword search if provided
+    if (keyword) {
+      queryText += ` WHERE (
+        LOWER(l.name) LIKE LOWER($1) OR 
+        LOWER(l.description) LIKE LOWER($1)
+      )`;
+      queryParams.push(`%${keyword}%`);
+    }
+
+    queryText += ` ORDER BY l.created_at DESC`;
+
+    console.log('Executing SQL query:', queryText);
+    console.log('Query parameters:', queryParams);
+
+    const result = await query(queryText, queryParams);
+    console.log('Query result rows:', result.rows);
+    
+    // Process the results to handle image URLs and ensure consistent structure
+    const processedResults = await Promise.all(result.rows.map(async row => {
+      const processedRow = {
+        listing_id: row.listing_id,
+        name: row.name,
+        description: row.description,
+        price: row.price,
+        location: row.location,
+        created_at: row.created_at,
+        user_email: row.user_email,
+        user_name: row.user_name,
+        seller_id: row.seller_id || row.user_id, // Ensure seller_id is always present
+        coordinates: null // Initialize coordinates as null
+      };
+
+      // Process image URL
+      if (row.image_url) {
+        try {
+          const imageData = JSON.parse(row.image_url);
+          processedRow.image_url = imageData.url;
+        } catch (error) {
+          console.error('Error parsing image URL:', error);
+          processedRow.image_url = null;
+        }
+      }
+
+      // Geocode seller location if available
+      if (row.seller_location) {
+        try {
+          const response = await axios.get(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(row.seller_location)}`
+          );
+          if (response.data && response.data.length > 0) {
+            processedRow.coordinates = {
+              latitude: parseFloat(response.data[0].lat),
+              longitude: parseFloat(response.data[0].lon)
+            };
+          }
+        } catch (error) {
+          console.error('Error geocoding seller location:', error);
+        }
+      }
+
+      return processedRow;
+    }));
+    
+    console.log('Processed results:', JSON.stringify(processedResults, null, 2));
+    res.json(processedResults);
+  } catch (error) {
+    console.error('Error in /listings:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch listings',
+      details: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Add a test route to verify server is working
+app.get('/test-listings', (req, res) => {
+  console.log('Test listings endpoint called');
+  res.json({ message: 'Listings endpoint is accessible' });
+});
+
+// Update User Access Level
+app.post('/api/updateAccessLevel', async (req, res) => {
+    try {
+        console.log('updateAccessLevel endpoint called');
+        const { userId, newAccessLevel } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+
+        if (!token) {
+            console.log('No token provided');
+            return res.status(401).json({ message: 'Authorization token is required' });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Decoded token:', decoded);
+
+        // Ensure the user is updating their own access level
+        if (decoded.user_id !== userId) {
+            console.log('User ID mismatch');
+            return res.status(403).json({ message: 'Unauthorized to update this user' });
+        }
+
+        // Update access level in database
+        const result = await query(
+            'UPDATE users SET access_level = $1 WHERE user_id = $2 RETURNING user_id, access_level',
+            [newAccessLevel, userId]
+        );
+
+        if (result.rows.length === 0) {
+            console.log('No user found for update');
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        console.log('Access level updated:', result.rows[0]);
+        res.json({ 
+            success: true, 
+            message: 'Access level updated successfully',
+            user: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating access level:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
 });
 
 
