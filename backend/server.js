@@ -27,6 +27,7 @@ app.use(cors());
 
 // Sign-Up Route
 app.post('/signup', async (req, res) => {
+  console.log('signup endpoint called');
   const { email, username, password, phone_number } = req.body;
 
   try {

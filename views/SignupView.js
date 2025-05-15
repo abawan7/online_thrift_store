@@ -6,6 +6,7 @@ import axios from 'axios';
 import PhoneInput from 'react-native-phone-number-input';  // Import the phone number input library
 import AuthController from '../controllers/AuthController';
 import { KeyboardAvoidingView, Platform , ScrollView} from 'react-native';
+import Constants from 'expo-constants';  // Add this import
 
 
 const width = Dimensions.get('window').width;
@@ -45,6 +46,7 @@ export default function SignupView({ navigation }) {
   };
 
   const handleSignUp = async () => {
+    console.log('signup button pressed');
     const errorMessage = validateInputs();
     if (errorMessage) {
       setError(errorMessage);
@@ -52,16 +54,23 @@ export default function SignupView({ navigation }) {
     }
 
     try {
+      console.log('Making signup request to:', `${Constants.expoConfig.extra.API_URL}/signup`);
+      console.log('Request data:', { email, username, password, phone_number: phoneNumber });
+      
       const response = await axios.post(`${Constants.expoConfig.extra.API_URL}/signup`, {
         email,
         username,
         password,
-        phone_number: phoneNumber,
+        phone_number: phoneNumber,  
       });
-  
+      
+      console.log('Signup response:', response.data);
       alert(response.data.message);
       navigation.navigate('Login');
     } catch (err) {
+      console.error('Signup error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error message:', err.message);
       setError(err.response?.data?.message || 'Something went wrong');
     }
   };
