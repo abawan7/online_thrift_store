@@ -21,7 +21,7 @@
 A mobile-first Final Year Project that brings second-hand shopping to your fingertips with real-time, location-based alerts and a trust-enhanced peer-to-peer marketplace.
 
 ## Demo
-<img src="" width="350" />
+<img src="https://github.com/abawan7/online_thrift_store/blob/main/Demo.gif" width="350" />
 
 ## 🌟 Features
 
