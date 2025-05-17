@@ -34,21 +34,44 @@ const ChatbotView = () => {
 
     const sendMessage = async() => {
         if (message.trim() === "") return;
-        setMessages([...messages, { sender: "You", text: message }]);
-        try {
-              const response = await axios.get(`http://192.168.100.233:8000/chat?user_id=${AsyncStorage.getItem('user_id')}&user_input=${message}`);
         
-              const botResponse = response.data.response;
-              setMessages((prevMessages) => [...prevMessages, { sender: "Bot", text: botResponse }]);
-              setMessage("");
-            } catch (error) {
-              console.error("Error:", error);
+        try {
+            // Add the user message to the chat
+            setMessages([...messages, { sender: "You", text: message }]);
+            
+            // Get the user_id from AsyncStorage
+            const userId = await AsyncStorage.getItem('user_id');
+            if (!userId) {
+                console.error("No user ID found");
+                return;
             }
 
-        setShowBotIntro(false);
-        setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 1000);
+            // Make the API call
+            const response = await axios.get(`${Constants.expoConfig.extra.API_URL}/chat`, {
+                params: {
+                    user_id: userId,
+                    user_input: message
+                }
+            });
+        
+            const botResponse = response.data.response;
+            setMessages((prevMessages) => [...prevMessages, { sender: "Bot", text: botResponse }]);
+            setMessage("");
+            setShowBotIntro(false);
+            
+            // Scroll to bottom after message is sent
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+            
+        } catch (error) {
+            console.error("Error sending message:", error);
+            // Add error message to chat
+            setMessages((prevMessages) => [...prevMessages, { 
+                sender: "Bot", 
+                text: "Sorry, I'm having trouble connecting right now. Please try again later." 
+            }]);
+        }
     };
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
