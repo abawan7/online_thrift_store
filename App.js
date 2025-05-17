@@ -217,47 +217,39 @@ export default function AppNavigator() {
 
     // Function to match wishlist items with listings
     const matchWishlistWithListings = async (wishlistItems, listings) => {
-        console.log('\n=== STARTING WISHLIST MATCHING PROCESS ===');
+        console.log('\n=== WISHLIST MATCHING RESULTS ===');
         console.log('Wishlist Items:', wishlistItems);
-        console.log('Available Listings:', listings);
+        console.log('Matched Listings:', listings.filter(listing => 
+            wishlistItems.some(item => {
+                const keywords = extractKeywordsFromText(item);
+                return keywords.some(keyword => 
+                    listing.name.toLowerCase().includes(keyword.toLowerCase()) ||
+                    listing.description.toLowerCase().includes(keyword.toLowerCase())
+                );
+            })
+        ));
 
         const matchedListings = [];
         const processedSellers = new Set();
 
         // Process each wishlist item
         for (const wishlistItem of wishlistItems) {
-            console.log('\n=== PROCESSING WISHLIST ITEM ===');
-            console.log('Item Description:', wishlistItem);
-            
-            // Extract keywords from the wishlist item
             const keywords = extractKeywordsFromText(wishlistItem);
-            console.log('Extracted Keywords:', keywords);
 
             // Check each listing for matches
             for (const listing of listings) {
-                console.log('\n--- Checking Listing ---');
-                console.log('Listing Name:', listing.name);
-                console.log('Listing Description:', listing.description);
-                console.log('Seller Email:', listing.user_email);
+                // Skip if seller already processed
+                if (processedSellers.has(listing.user_email)) continue;
 
                 // Check if the listing matches any of the keywords
                 const hasMatch = keywords.some(keyword => 
                     listing.name.toLowerCase().includes(keyword.toLowerCase()) ||
                     listing.description.toLowerCase().includes(keyword.toLowerCase())
                 );
-                console.log('Has Match:', hasMatch);
-
-                // Skip if seller already processed
-                if (processedSellers.has(listing.user_email)) {
-                    console.log('Already Processed Seller:', true);
-                    continue;
-                }
-                console.log('Already Processed Seller:', false);
 
                 if (hasMatch) {
                     // Geocode the listing's location
                     const coordinates = await geocodeLocation(listing.location);
-                    console.log('Geocoded Location:', coordinates);
 
                     if (coordinates) {
                         matchedListings.push({
@@ -274,56 +266,34 @@ export default function AppNavigator() {
             }
         }
 
-        console.log('\n=== MATCHING PROCESS COMPLETE ===');
-        console.log('Total Matched Listings:', matchedListings.length);
-        console.log('Matched Listings:', matchedListings);
-
         // Store matched listings in AsyncStorage
         await AsyncStorage.setItem('matchedListings', JSON.stringify(matchedListings));
-        console.log('Stored matched listings in AsyncStorage');
-
+        
         return matchedListings;
     };
 
-    // Modified checkNearbyMatches function to include target user ID
+    // Modified checkNearbyMatches function
     const checkNearbyMatches = async (coords) => {
         try {
             const currentUserId = await AsyncStorage.getItem('user_id');
-            if (!currentUserId) {
-                console.log('No user ID found, skipping nearby matches check');
-                return;
-            }
+            if (!currentUserId) return;
 
-            console.log('\n=== CHECKING NEARBY MATCHES ===');
-            console.log('Current User Location:', coords);
-            
-            // Check if location has changed significantly
             if (hasLocationChangedSignificantly(lastNotificationLocation, coords)) {
-                console.log('Location changed significantly, resetting notifications');
-                setNotifiedSellers(new Set()); // Reset notified sellers
-                setLastNotificationLocation(coords); // Update last notification location
+                setNotifiedSellers(new Set());
+                setLastNotificationLocation(coords);
             }
             
             const storedMatches = await AsyncStorage.getItem('matchedListings');
-            if (!storedMatches) {
-                console.log('No stored matches found');
-                return;
-            }
+            if (!storedMatches) return;
 
             const matches = JSON.parse(storedMatches);
-            console.log('Retrieved Matches:', matches);
+            console.log('\n=== NEARBY MATCHES ===');
+            console.log('Current Location:', coords);
+            console.log('Matched Items:', matches);
             
             const nearbySellers = matches.filter(match => {
-                if (!match.coordinates) {
-                    console.log('No coordinates for match:', match.name);
-                    return false;
-                }
-
-                // Skip if the listing belongs to the current user
-                if (match.seller_id?.toString() === currentUserId) {
-                    console.log(`Skipping own listing: ${match.name}`);
-                    return false;
-                }
+                if (!match.coordinates) return false;
+                if (match.seller_id?.toString() === currentUserId) return false;
 
                 const distance = calculateDistance(
                     coords.latitude,
@@ -332,18 +302,8 @@ export default function AppNavigator() {
                     match.coordinates.longitude
                 );
                 
-                console.log(`\nChecking seller ${match.user_email}:`);
-                console.log('Distance:', distance.toFixed(2), 'km');
-                console.log('Already Notified:', notifiedSellers.has(match.user_email));
-                console.log('Seller ID:', match.seller_id);
-                console.log('Current User ID:', currentUserId);
-                
-                // Return true if within 5km and not the current user's listing
                 return distance <= 5;
             });
-
-            console.log('\nNearby Sellers Found:', nearbySellers.length);
-            console.log('Nearby Sellers:', nearbySellers);
 
             for (const seller of nearbySellers) {
                 const distance = calculateDistance(
@@ -353,15 +313,6 @@ export default function AppNavigator() {
                     seller.coordinates.longitude
                 );
 
-                console.log('\n=== SENDING NOTIFICATION ===');
-                console.log('Seller:', seller.user_name);
-                console.log('Distance:', distance.toFixed(2), 'km');
-                console.log('Matching Item:', seller.name);
-                console.log('Matched Keywords:', seller.matchedKeywords);
-                console.log('Seller ID:', seller.seller_id);
-                console.log('Current User ID:', currentUserId);
-
-                // Send notification with target user ID
                 await Notifications.scheduleNotificationAsync({
                     content: {
                         title: 'Matching Seller Nearby!',
@@ -370,17 +321,13 @@ export default function AppNavigator() {
                             sellerId: seller.user_email,
                             listingId: seller.listing_id,
                             sellerUserId: seller.seller_id,
-                            targetUserId: currentUserId // Add target user ID
+                            targetUserId: currentUserId
                         },
                     },
                     trigger: null,
                 });
-
-                console.log('Notification sent successfully');
                 
-                // Update notified sellers
                 setNotifiedSellers(prev => new Set([...prev, seller.user_email]));
-                console.log('Added to notified sellers list');
             }
         } catch (error) {
             console.error('Error in checkNearbyMatches:', error);
@@ -427,30 +374,20 @@ export default function AppNavigator() {
     useEffect(() => {
         const initialize = async () => {
             try {
-                console.log('\n=== INITIALIZING APP ===');
-                // Get user token
                 const token = await AsyncStorage.getItem('userToken');
-                console.log('Initial token check:', token ? 'Token found' : 'No token found');
 
-                // Listen for login success
                 const loginListener = async (event) => {
-                    console.log('\n=== LOGIN SUCCESS DETECTED ===');
                     const newToken = await AsyncStorage.getItem('userToken');
-                    console.log('New token received:', newToken ? 'Token found' : 'No token found');
                     
                     if (newToken) {
                         setUserToken(newToken);
-                        console.log('Token set in state');
 
                         try {
-                            // Show welcome notification
                             const userName = await AsyncStorage.getItem('user_name');
                             await showWelcomeNotification(userName || 'there');
 
-                            console.log('\nFetching wishlist items...');
                             try {
                                 const userId = await AsyncStorage.getItem('user_id');
-                                console.log('User ID for wishlist:', userId);
                                 
                                 const wishlistResponse = await axios.get(
                                     `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}`,
@@ -461,9 +398,7 @@ export default function AppNavigator() {
                                         }
                                     }
                                 );
-                                console.log('Wishlist Response:', JSON.stringify(wishlistResponse.data, null, 2));
 
-                                console.log('\nFetching listings...');
                                 const listingsResponse = await axios.get(
                                     `${Constants.expoConfig.extra.API_URL}/listings`,
                                     {
@@ -473,28 +408,14 @@ export default function AppNavigator() {
                                         }
                                     }
                                 );
-                                console.log('Listings Response:', JSON.stringify(listingsResponse.data, null, 2));
 
-                                // Match wishlist items with listings
                                 if (wishlistResponse.data && listingsResponse.data) {
-                                    console.log('\nStarting wishlist matching process...');
                                     await matchWishlistWithListings(wishlistResponse.data.products || [], listingsResponse.data);
                                 }
                             } catch (error) {
                                 console.error('Error fetching data:', error.response?.data || error.message);
-                                console.error('Error details:', {
-                                    status: error.response?.status,
-                                    statusText: error.response?.statusText,
-                                    url: error.config?.url,
-                                    method: error.config?.method,
-                                    headers: error.config?.headers
-                                });
-                                // Continue with initialization even if wishlist fetch fails
-                                console.log('Continuing with initialization...');
                             }
 
-                            // Initialize location tracking
-                            console.log('\nInitializing location tracking...');
                             await initializeLocationTracking();
                         } catch (error) {
                             console.error('Error during post-login initialization:', error);
@@ -502,69 +423,42 @@ export default function AppNavigator() {
                     }
                 };
 
-                // Add event listener for login success
                 const subscription = eventEmitter.addListener('LOGIN_SUCCESS', loginListener);
 
-                // If we already have a token, proceed with initialization
                 if (token) {
-                    console.log('Proceeding with existing token');
                     setUserToken(token);
 
                     try {
-                        console.log('\nFetching wishlist items...');
-                        try {
-                            const userId = await AsyncStorage.getItem('user_id');
-                            console.log('User ID for wishlist:', userId);
-                            
-                            const wishlistResponse = await axios.get(
-                                `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}`,
-                                {
-                                    headers: {
-                                        'Authorization': `Bearer ${token}`,
-                                        'Content-Type': 'application/json'
-                                    }
+                        const userId = await AsyncStorage.getItem('user_id');
+                        
+                        const wishlistResponse = await axios.get(
+                            `${Constants.expoConfig.extra.API_URL}/wishlist/${userId}`,
+                            {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
                                 }
-                            );
-                            console.log('Wishlist Response:', JSON.stringify(wishlistResponse.data, null, 2));
-
-                            console.log('\nFetching listings...');
-                            const listingsResponse = await axios.get(
-                                `${Constants.expoConfig.extra.API_URL}/listings`,
-                                {
-                                    headers: {
-                                        'Authorization': `Bearer ${token}`,
-                                        'Content-Type': 'application/json'
-                                    }
-                                }
-                            );
-                            console.log('Listings Response:', JSON.stringify(listingsResponse.data, null, 2));
-
-                            // Match wishlist items with listings
-                            if (wishlistResponse.data && listingsResponse.data) {
-                                console.log('\nStarting wishlist matching process...');
-                                await matchWishlistWithListings(wishlistResponse.data.products || [], listingsResponse.data);
                             }
-                        } catch (error) {
-                            console.error('Error fetching data:', error.response?.data || error.message);
-                            console.error('Error details:', {
-                                status: error.response?.status,
-                                statusText: error.response?.statusText,
-                                url: error.config?.url,
-                                method: error.config?.method,
-                                headers: error.config?.headers
-                            });
-                            // Continue with initialization even if wishlist fetch fails
-                            console.log('Continuing with initialization...');
+                        );
+
+                        const listingsResponse = await axios.get(
+                            `${Constants.expoConfig.extra.API_URL}/listings`,
+                            {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            }
+                        );
+
+                        if (wishlistResponse.data && listingsResponse.data) {
+                            await matchWishlistWithListings(wishlistResponse.data.products || [], listingsResponse.data);
                         }
 
-                        // Initialize location tracking
-                        console.log('\nInitializing location tracking...');
                         await initializeLocationTracking();
                     } catch (error) {
                         console.error('Error during initialization with existing token:', error);
                     }
-                } else {
-                    console.log('No token found, waiting for login...');
                 }
 
                 return () => {
